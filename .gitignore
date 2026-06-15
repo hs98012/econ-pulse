@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Gradle and Java
+.gradle/
+build/
+out/
+*.class
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Logs and runtime files
+*.log
+tmp/

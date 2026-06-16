@@ -2,7 +2,7 @@ spring:
   application:
     name: econ-pulse
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:econpulse}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3308}/${MYSQL_DATABASE:econpulse}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
     username: ${MYSQL_USER:econpulse}
     password: ${MYSQL_PASSWORD:econpulse}
     driver-class-name: com.mysql.cj.jdbc.Driver

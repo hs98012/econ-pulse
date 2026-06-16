@@ -37,6 +37,10 @@ docker compose up -d
 docker compose ps
 ```
 
+로컬 MySQL과 다른 Docker MySQL이 기본 포트 `3306` 또는 인접 포트를 사용 중일
+수 있으므로 Docker MySQL은 충돌을 피하기 위해 호스트 포트 `3308`로 실행합니다.
+컨테이너 내부 포트는 `3306`입니다.
+
 두 서비스가 `healthy` 상태가 된 뒤 애플리케이션을 실행합니다.
 
 ```bash

@@ -3,8 +3,8 @@
 경제용어 사전에 최신 뉴스를 자동 매핑하고 Redis 기반 실시간 인기 검색어를
 제공하는 Spring Boot 백엔드입니다.
 
-현재 구현 범위는 Phase 1 프로젝트 및 인프라 기반입니다. Entity, Controller,
-API는 아직 구현하지 않습니다.
+현재 구현 범위는 Phase 2 RDB 엔티티와 Repository 기반입니다. Controller,
+Service, API는 아직 구현하지 않습니다.
 
 ## 기술 스택
 
@@ -46,6 +46,10 @@ docker compose ps
 ```bash
 ./gradlew bootRun
 ```
+
+현재 개발 단계에서는 `spring.jpa.hibernate.ddl-auto=update`를 사용해 엔티티를
+기준으로 로컬 MySQL 테이블을 자동 생성합니다. 운영 단계에서는 마이그레이션
+기반 검증 설정으로 전환해야 합니다.
 
 애플리케이션은 기본적으로 `http://localhost:8080`에서 실행됩니다. 현재
 Phase에는 공개 API가 없습니다.

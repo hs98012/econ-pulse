@@ -60,4 +60,11 @@ public class EconomicTerm extends BaseTimeEntity {
         this.definition = definition;
         this.aliases = aliases == null ? new ArrayList<>() : new ArrayList<>(aliases);
     }
+
+    public void update(String name, String normalizedName, String definition, List<String> aliases) {
+        this.name = name;
+        this.normalizedName = normalizedName;
+        this.definition = definition;
+        this.aliases = aliases == null ? new ArrayList<>() : new ArrayList<>(aliases);
+    }
 }

@@ -51,6 +51,15 @@ docker compose ps
 기준으로 로컬 MySQL 테이블을 자동 생성합니다. 운영 단계에서는 마이그레이션
 기반 검증 설정으로 전환해야 합니다.
 
+한글 데이터가 `??`로 깨져 저장되는 경우 기존 MySQL 볼륨이 utf8mb4 설정 전에
+생성되었을 수 있습니다. 로컬 개발 데이터 삭제가 가능하다면 DB 볼륨을 초기화한
+뒤 다시 실행합니다.
+
+```bash
+docker compose down -v
+docker compose up -d
+```
+
 애플리케이션은 기본적으로 `http://localhost:8080`에서 실행됩니다. 현재
 Phase에는 공개 API가 없습니다.
 

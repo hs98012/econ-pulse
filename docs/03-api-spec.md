@@ -2,7 +2,7 @@
 
 ## 1. 공통 규칙
 
-- Base path: `/api/v1`
+- Base path: `/api`
 - 요청·응답: `application/json`
 - 시간: UTC 기반 ISO 8601
 - 페이징 기본값: `page=0`, `size=20`; 최대 `size=100`
@@ -20,8 +20,13 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| `GET` | `/api/v1/terms?query=&page=&size=` | 이름·별칭으로 용어 검색 |
-| `GET` | `/api/v1/terms/{termId}` | 용어 상세 조회 |
+| `POST` | `/api/terms` | 용어 등록 |
+| `GET` | `/api/terms` | 용어 전체 조회 |
+| `GET` | `/api/terms/{termId}` | 용어 상세 조회 |
+| `GET` | `/api/terms/search?keyword=` | 이름·별칭으로 용어 검색 |
+| `PUT` | `/api/terms/{termId}` | 용어 수정 |
+| `DELETE` | `/api/terms/{termId}` | 용어 삭제 |
+| `GET` | `/api/v1/terms?query=&page=&size=` | 향후 페이징 기반 이름·별칭 검색 |
 | `GET` | `/api/v1/terms/{termId}/news?page=&size=` | 용어 관련 최신 뉴스 조회 |
 | `GET` | `/api/v1/news?page=&size=` | 수집된 뉴스 최신순 조회 |
 | `GET` | `/api/v1/news/{newsId}` | 뉴스 상세 메타데이터 조회 |
@@ -45,7 +50,7 @@
 }
 ```
 
-존재하지 않는 용어는 `404 TERM_NOT_FOUND`를 반환한다. 성공한 검색 및 상세 조회는 해당 용어의 Redis 인기 점수를 증가시킨다.
+존재하지 않는 용어는 `404 TERM_NOT_FOUND`를 반환한다. Redis 인기 점수 증가는 향후 인기 검색어 단계에서 연결한다.
 
 ### 관련 뉴스 항목
 

@@ -3,9 +3,10 @@
 경제용어 사전에 최신 뉴스를 자동 매핑하고 Redis 기반 실시간 인기 검색어를
 제공하는 Spring Boot 백엔드입니다.
 
-현재 구현 범위는 Phase 2 경제용어 사전입니다. 경제용어 등록, 상세 조회,
-페이징 목록·검색, 수정, 비활성화 삭제 API가 구현되어 있으며, 뉴스 수집,
-뉴스 자동 매핑 실행, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+현재 구현 범위는 Phase 3 시작 지점입니다. Phase 2 경제용어 사전 API는 완료됐고,
+Phase 3의 첫 작업으로 뉴스 제공자 Port와 테스트용 Fake Adapter가 추가됐습니다.
+실제 외부 뉴스 API 연동, 뉴스 저장 워크플로, 뉴스 자동 매핑, 스케줄러, 내부
+동기화 API, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
 
 ## 기술 스택
 
@@ -18,6 +19,27 @@
 - Lombok
 - Docker Compose
 - Testcontainers, ArchUnit, JaCoCo, Checkstyle
+
+## Phase 3 뉴스 제공자 Port
+
+뉴스 제공자 연동은 `com.econpulse.news.application.port.NewsProvider` Port 뒤에
+숨깁니다. Port 모델은 `NewsSearchQuery`, `NewsSort`, `NewsProviderArticle`,
+`NewsSearchResult`이며 Spring, HTTP 클라이언트, 특정 외부 제공자 DTO에 의존하지
+않습니다.
+
+테스트와 로컬 개발에는 `com.econpulse.news.infrastructure.provider.FakeNewsProvider`
+를 직접 생성해서 사용합니다. Fake Adapter는 Spring Bean으로 등록하지 않으므로
+운영 환경에서 실제 Provider처럼 자동 사용되지 않습니다. 테스트마다 새 인스턴스에
+데이터를 주입해 상태 오염을 피합니다.
+
+Fake Adapter는 제목 또는 요약에 검색어가 포함된 뉴스를 반환하고, 검색 비교 전에
+trim, Unicode NFKC, 연속 공백 정리, 소문자 변환을 적용합니다. 정렬은 최신순과
+관련도순을 지원하며 page/size 페이징을 적용합니다. 외부 제공자 응답에 있을 수
+있는 `<b>`, `&quot;`, `&amp;` 같은 표현은 Adapter 경계에서 일반 문자열로 정리해
+Port 바깥 계층이 제공자별 HTML 형식을 알지 않게 합니다.
+
+실제 외부 Adapter를 추가할 때 provider별 요청/응답 DTO는 adapter 내부 패키지에만
+두고, 애플리케이션 계층에는 Port 모델만 반환해야 합니다.
 
 ## 로컬 실행
 

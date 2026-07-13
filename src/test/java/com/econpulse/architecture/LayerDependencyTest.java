@@ -7,6 +7,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.econpulse.news.application.port.NewsProvider;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +29,38 @@ class LayerDependencyTest {
             .should()
             .dependOnClassesThat()
             .resideInAPackage("..api..");
+
+    @ArchTest
+    static final ArchRule domainDoesNotDependOnInfrastructure = noClasses()
+            .that()
+            .resideInAPackage("..domain..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..infrastructure..");
+
+    @ArchTest
+    static final ArchRule applicationPortsDoNotDependOnSpringOrHttpClients = noClasses()
+            .that()
+            .resideInAPackage("..application.port..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "org.springframework..",
+                    "org.springframework.web.client..",
+                    "org.springframework.web.reactive.function.client..",
+                    "feign..",
+                    "okhttp3..",
+                    "java.net.http.."
+            );
+
+    @ArchTest
+    static final ArchRule newsInfrastructureProvidersImplementNewsProviderPort = classes()
+            .that()
+            .resideInAPackage("..news.infrastructure.provider..")
+            .and()
+            .haveSimpleNameEndingWith("Provider")
+            .should()
+            .beAssignableTo(NewsProvider.class);
 
     @ArchTest
     static final ArchRule controllersDoNotDependOnRepositories = noClasses()

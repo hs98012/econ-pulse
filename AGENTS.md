@@ -2,9 +2,9 @@
 
 ## Project Goal
 
-EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 is complete: the economic term glossary API, persistence, migration, tests, local seed policy, and Phase 2 documentation are in place.
+EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 is complete: the economic term glossary API, persistence, migration, tests, local seed policy, and Phase 2 documentation are in place. Phase 3 has started with the news provider Port and Fake Adapter only.
 
-The next implementation work is Phase 3. Start Phase 3 with a news provider port and Fake Adapter before adding real external integrations. Do not implement Redis popular-search behavior until Phase 4.
+Current Phase 3 scope includes the provider-neutral news search Port, immutable provider request/response models, provider exception model, and an in-memory Fake Adapter for tests/local development. Real external news provider integration, HTTP clients, news persistence workflows, automatic term-news mapping, schedulers, and internal sync APIs are not implemented yet. Do not implement Redis popular-search behavior until Phase 4.
 
 ## Source of Truth
 
@@ -34,7 +34,7 @@ Mirror production packages under `src/test/java/com/econpulse`. Keep migrations 
 
 ## Development Workflow
 
-Implement one phase at a time. Before coding, identify the phase and its success criteria. Prefer small changes that preserve documented API and persistence contracts. Phase 3 work must keep external news providers behind a port and must use a Fake Adapter first. Redis behavior belongs to Phase 4 and must not be introduced during Phase 3.
+Implement one phase at a time. Before coding, identify the phase and its success criteria. Prefer small changes that preserve documented API and persistence contracts. Phase 3 work must keep external news providers behind a port and must keep provider-specific DTOs inside adapter packages. The Fake Adapter is for tests/local development and must not be wired as the production provider. Redis behavior belongs to Phase 4 and must not be introduced during Phase 3.
 
 ## Style and Naming
 

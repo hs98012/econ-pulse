@@ -19,14 +19,20 @@ com.econpulse
 
 ### EconomicTerm
 
-- 속성: `id`, `name`, `definition`, `aliases`, `createdAt`, `updatedAt`
-- 규칙: 정규화된 이름은 유일하며 이름과 정의는 비어 있을 수 없다.
+- 속성: `id`, `name`, `normalizedName`, `definition`, `status`, `aliases`, `createdAt`, `updatedAt`
+- 규칙: 정규화된 이름은 유일하며 이름과 정의는 비어 있을 수 없다. 삭제는 물리 삭제가 아니라 `INACTIVE` 상태 전환이다.
 - 책임: 검색어 일치 여부와 공개 가능한 용어 정보를 제공한다.
+
+### EconomicTermAlias
+
+- 속성: `id`, `economicTermId`, `alias`, `normalizedAlias`
+- 규칙: 별칭은 저장 전에 trim, Unicode NFKC, 연속 공백 정리, 소문자 변환을 적용한다. 같은 용어 내부의 정규화 별칭 중복과 정규화 결과가 용어명과 같은 별칭은 제거한다. Phase 2에서는 정규화 별칭을 전체 용어에서 유일하게 유지한다.
+- 책임: 별칭 검색을 DB 쿼리와 인덱스로 처리할 수 있게 한다.
 
 ### NewsArticle
 
 - 속성: `id`, `title`, `summary`, `sourceName`, `sourceUrl`, `publishedAt`, `collectedAt`
-- 규칙: `sourceUrl`은 유일하다. 원문 저작권을 고려해 초기 버전은 메타데이터와 요약만 저장한다.
+- 규칙: 긴 URL 인덱스 한도를 피하기 위해 `sourceUrlHash`가 유일하다. 원문 URL은 보존한다. 원문 저작권을 고려해 초기 버전은 메타데이터와 요약만 저장한다.
 - 책임: 외부 뉴스의 식별 정보와 발행 시점을 보존한다.
 
 ### TermNewsMapping
@@ -45,6 +51,7 @@ com.econpulse
 ## 3. 관계
 
 - `EconomicTerm` 1:N `TermNewsMapping`
+- `EconomicTerm` 1:N `EconomicTermAlias`
 - `NewsArticle` 1:N `TermNewsMapping`
 - `EconomicTerm` 1:N `PopularTermSnapshot`
 

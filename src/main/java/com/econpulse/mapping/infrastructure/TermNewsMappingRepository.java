@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TermNewsMappingRepository extends JpaRepository<TermNewsMapping, Long> {
 
     boolean existsByEconomicTermIdAndNewsArticleId(Long economicTermId, Long newsArticleId);
+
+    long countByEconomicTermId(Long economicTermId);
 }

@@ -35,17 +35,28 @@
 
 ## Phase 2. 경제용어 사전
 
+상태: 완료.
+
 ### 작업
 
-- `EconomicTerm` 엔티티, 마이그레이션, 저장소 구현
-- 검색·상세 API 및 검증 구현
-- 단위·JPA·API 테스트 작성
+- 완료: `EconomicTerm` 엔티티와 `EconomicTermAlias` 정규화 테이블 구현
+- 완료: Flyway 초기 마이그레이션과 `ddl-auto=validate` 전환
+- 완료: `/api/v1/terms` CRUD, 페이징 전체 조회·검색, 검증, 공통 오류 응답
+- 완료: soft delete를 위한 `TermStatus`와 ACTIVE 전용 조회
+- 완료: 서비스, repository, controller, ArchUnit 테스트와 Testcontainers MySQL 인프라
+- 완료: API 계약 예제, seed/test data 정책, 검색 성능 검토 스크립트와 문서화
 
 ### 성공 기준
 
-- 이름과 별칭 검색, 페이징, 상세 조회 계약 테스트가 통과한다.
-- 중복 정규화 이름이 DB에서 차단된다.
-- API가 JPA 엔티티를 직접 노출하지 않는다.
+- 충족: 이름과 별칭 검색, 페이징, 상세 조회 계약 테스트가 통과한다.
+- 충족: 중복 정규화 이름이 DB에서 차단된다.
+- 충족: 중복 정규화 별칭이 DB에서 차단된다.
+- 충족: API가 JPA 엔티티를 직접 노출하지 않는다.
+- 충족: Flyway 마이그레이션과 MySQL 기반 통합 테스트가 통과한다.
+- 충족: 문서와 구현의 Phase 2 API 계약이 일치한다.
+- 충족: `./scripts/check.sh`와 `docker compose config`가 성공한다.
+
+Phase 2 완료 후 다음 작업은 Phase 3이다. Phase 3의 첫 작업은 뉴스 제공자 포트와 Fake Adapter 구현이다.
 
 ## Phase 3. 뉴스 수집과 자동 매핑
 

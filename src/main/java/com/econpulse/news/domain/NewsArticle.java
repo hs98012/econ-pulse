@@ -26,7 +26,6 @@ import lombok.NoArgsConstructor;
                 @Index(name = "idx_news_articles_published_at", columnList = "published_at")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_news_articles_source_url", columnNames = "source_url"),
                 @UniqueConstraint(name = "uk_news_articles_source_url_hash", columnNames = "source_url_hash")
         }
 )

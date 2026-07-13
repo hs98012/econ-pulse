@@ -1,12 +1,24 @@
 package com.econpulse.term.application;
 
 import com.econpulse.term.api.dto.TermCreateRequest;
-import com.econpulse.term.api.dto.TermResponse;
+import com.econpulse.term.api.dto.PageResponse;
+import com.econpulse.term.api.dto.TermDetailResponse;
+import com.econpulse.term.api.dto.TermSummaryResponse;
 import com.econpulse.term.api.dto.TermUpdateRequest;
 import com.econpulse.term.domain.EconomicTerm;
+import com.econpulse.term.domain.EconomicTermAlias;
+import com.econpulse.term.domain.TermNormalizer;
+import com.econpulse.term.domain.TermStatus;
+import com.econpulse.term.infrastructure.EconomicTermAliasRepository;
 import com.econpulse.term.infrastructure.EconomicTermRepository;
+import com.econpulse.mapping.infrastructure.TermNewsMappingRepository;
+import java.text.Normalizer;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,99 +26,142 @@ import org.springframework.transaction.annotation.Transactional;
 public class EconomicTermService {
 
     private final EconomicTermRepository economicTermRepository;
+    private final EconomicTermAliasRepository economicTermAliasRepository;
+    private final TermNewsMappingRepository termNewsMappingRepository;
 
-    public EconomicTermService(EconomicTermRepository economicTermRepository) {
+    public EconomicTermService(
+            EconomicTermRepository economicTermRepository,
+            EconomicTermAliasRepository economicTermAliasRepository,
+            TermNewsMappingRepository termNewsMappingRepository
+    ) {
         this.economicTermRepository = economicTermRepository;
+        this.economicTermAliasRepository = economicTermAliasRepository;
+        this.termNewsMappingRepository = termNewsMappingRepository;
     }
 
     @Transactional
-    public TermResponse create(TermCreateRequest request) {
-        String normalizedName = normalizeName(request.name());
-        validateDuplicateName(request.name(), normalizedName);
+    public TermDetailResponse create(TermCreateRequest request) {
+        String name = normalizeDisplayValue(request.name());
+        String normalizedName = TermNormalizer.normalize(name);
+        validateDuplicateName(normalizedName);
 
         EconomicTerm economicTerm = new EconomicTerm(
-                request.name(),
+                name,
                 normalizedName,
-                request.definition(),
-                request.aliases()
+                request.definition().trim(),
+                buildAliases(request.aliases(), normalizedName)
         );
+        validateDuplicateAliases(economicTerm, null);
 
-        return TermResponse.from(economicTermRepository.save(economicTerm));
+        try {
+            EconomicTerm savedTerm = economicTermRepository.saveAndFlush(economicTerm);
+            return TermDetailResponse.from(savedTerm, 0);
+        } catch (DataIntegrityViolationException exception) {
+            throw translateDuplicateException(exception);
+        }
     }
 
     @Transactional(readOnly = true)
-    public List<TermResponse> findAll() {
-        return economicTermRepository.findAll()
-                .stream()
-                .map(TermResponse::from)
-                .toList();
+    public PageResponse<TermSummaryResponse> find(String query, int page, int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("name").ascending().and(Sort.by("id").ascending()));
+        String normalizedQuery = query == null || query.isBlank() ? null : TermNormalizer.normalize(query);
+
+        if (normalizedQuery == null) {
+            return PageResponse.from(economicTermRepository.findAllByStatusWithAliases(TermStatus.ACTIVE, pageable)
+                    .map(TermSummaryResponse::from));
+        }
+
+        return PageResponse.from(economicTermRepository.searchByNormalizedNameOrAlias(
+                        normalizedQuery,
+                        TermStatus.ACTIVE,
+                        pageable
+                )
+                .map(TermSummaryResponse::from));
     }
 
     @Transactional(readOnly = true)
-    public TermResponse findById(Long termId) {
-        return TermResponse.from(getTerm(termId));
-    }
-
-    @Transactional(readOnly = true)
-    public List<TermResponse> search(String keyword) {
-        String normalizedKeyword = normalizeSearchKeyword(keyword);
-
-        return economicTermRepository.findAll()
-                .stream()
-                .filter(term -> matchesKeyword(term, normalizedKeyword))
-                .map(TermResponse::from)
-                .toList();
+    public TermDetailResponse findById(Long termId) {
+        EconomicTerm economicTerm = getActiveTerm(termId);
+        long latestNewsCount = termNewsMappingRepository.countByEconomicTermId(termId);
+        return TermDetailResponse.from(economicTerm, latestNewsCount);
     }
 
     @Transactional
-    public TermResponse update(Long termId, TermUpdateRequest request) {
-        EconomicTerm economicTerm = getTerm(termId);
-        String normalizedName = normalizeName(request.name());
+    public TermDetailResponse update(Long termId, TermUpdateRequest request) {
+        EconomicTerm economicTerm = getActiveTerm(termId);
+        String name = normalizeDisplayValue(request.name());
+        String normalizedName = TermNormalizer.normalize(name);
 
-        if (economicTermRepository.existsByNameAndIdNot(request.name(), termId)
-                || economicTermRepository.existsByNormalizedNameAndIdNot(normalizedName, termId)) {
+        if (economicTermRepository.existsByNormalizedNameAndIdNot(normalizedName, termId)) {
             throw new DuplicateTermNameException();
         }
 
-        economicTerm.update(request.name(), normalizedName, request.definition(), request.aliases());
+        economicTerm.update(name, normalizedName, request.definition().trim(), buildAliases(request.aliases(), normalizedName));
+        validateDuplicateAliases(economicTerm, termId);
 
-        return TermResponse.from(economicTerm);
+        try {
+            economicTermRepository.flush();
+            long latestNewsCount = termNewsMappingRepository.countByEconomicTermId(termId);
+            return TermDetailResponse.from(economicTerm, latestNewsCount);
+        } catch (DataIntegrityViolationException exception) {
+            throw translateDuplicateException(exception);
+        }
     }
 
     @Transactional
     public void delete(Long termId) {
-        EconomicTerm economicTerm = getTerm(termId);
-        economicTermRepository.delete(economicTerm);
+        economicTermRepository.findById(termId)
+                .ifPresent(EconomicTerm::deactivate);
     }
 
-    private EconomicTerm getTerm(Long termId) {
-        return economicTermRepository.findById(termId)
+    private EconomicTerm getActiveTerm(Long termId) {
+        return economicTermRepository.findByIdAndStatus(termId, TermStatus.ACTIVE)
                 .orElseThrow(TermNotFoundException::new);
     }
 
-    private void validateDuplicateName(String name, String normalizedName) {
-        if (economicTermRepository.existsByName(name)
-                || economicTermRepository.existsByNormalizedName(normalizedName)) {
+    private void validateDuplicateName(String normalizedName) {
+        if (economicTermRepository.existsByNormalizedName(normalizedName)) {
             throw new DuplicateTermNameException();
         }
     }
 
-    private boolean matchesKeyword(EconomicTerm term, String normalizedKeyword) {
-        if (term.getNormalizedName().contains(normalizedKeyword)) {
-            return true;
+    private void validateDuplicateAliases(EconomicTerm economicTerm, Long termId) {
+        for (EconomicTermAlias alias : economicTerm.getAliases()) {
+            boolean exists = termId == null
+                    ? economicTermAliasRepository.existsByNormalizedAlias(alias.getNormalizedAlias())
+                    : economicTermAliasRepository.existsByNormalizedAliasAndEconomicTermIdNot(
+                            alias.getNormalizedAlias(),
+                            termId
+                    );
+            if (exists) {
+                throw new DuplicateTermAliasException();
+            }
         }
+    }
 
-        return term.getAliases()
+    private RuntimeException translateDuplicateException(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        if (message != null && message.contains("economic_term_aliases")) {
+            return new DuplicateTermAliasException();
+        }
+        return new DuplicateTermNameException();
+    }
+
+    private List<EconomicTermAlias> buildAliases(List<String> aliases, String normalizedName) {
+        Map<String, String> uniqueAliases = new LinkedHashMap<>();
+        aliases.stream()
+                .map(TermNormalizer::normalize)
+                .filter(alias -> !alias.equals(normalizedName))
+                .forEach(alias -> uniqueAliases.putIfAbsent(alias, alias));
+
+        return uniqueAliases.values()
                 .stream()
-                .map(this::normalizeSearchKeyword)
-                .anyMatch(alias -> alias.contains(normalizedKeyword));
+                .map(alias -> new EconomicTermAlias(alias, alias))
+                .toList();
     }
 
-    private String normalizeName(String name) {
-        return normalizeSearchKeyword(name);
-    }
-
-    private String normalizeSearchKeyword(String value) {
-        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    private String normalizeDisplayValue(String value) {
+        return Normalizer.normalize(value.trim(), Normalizer.Form.NFKC)
+                .replaceAll("\\s+", " ");
     }
 }

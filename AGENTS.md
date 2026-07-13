@@ -2,7 +2,9 @@
 
 ## Project Goal
 
-EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. The current repository phase is documentation and harness setup only; do not add application code until the relevant phase in `docs/05-development-plan.md` begins.
+EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 is complete: the economic term glossary API, persistence, migration, tests, local seed policy, and Phase 2 documentation are in place.
+
+The next implementation work is Phase 3. Start Phase 3 with a news provider port and Fake Adapter before adding real external integrations. Do not implement Redis popular-search behavior until Phase 4.
 
 ## Source of Truth
 
@@ -32,7 +34,7 @@ Mirror production packages under `src/test/java/com/econpulse`. Keep migrations 
 
 ## Development Workflow
 
-Implement one phase at a time. Before coding, identify the phase and its success criteria. Prefer small changes that preserve documented API and persistence contracts. Add tests for business rules, repository queries, API validation, and Redis behavior. External news providers must be accessed through an adapter and mocked in tests.
+Implement one phase at a time. Before coding, identify the phase and its success criteria. Prefer small changes that preserve documented API and persistence contracts. Phase 3 work must keep external news providers behind a port and must use a Fake Adapter first. Redis behavior belongs to Phase 4 and must not be introduced during Phase 3.
 
 ## Style and Naming
 

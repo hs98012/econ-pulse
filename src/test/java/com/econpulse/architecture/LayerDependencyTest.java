@@ -54,6 +54,14 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule newsApplicationDoesNotDependOnProviderImplementations = noClasses()
+            .that()
+            .resideInAPackage("..news.application..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..news.infrastructure.provider..");
+
+    @ArchTest
     static final ArchRule newsInfrastructureProvidersImplementNewsProviderPort = classes()
             .that()
             .resideInAPackage("..news.infrastructure.provider..")

@@ -11,7 +11,9 @@ import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -80,5 +82,71 @@ public class NewsArticle extends BaseTimeEntity {
 
     public byte[] getSourceUrlHash() {
         return sourceUrlHash == null ? null : sourceUrlHash.clone();
+    }
+
+    public static NewsArticle create(
+            String title,
+            String summary,
+            String sourceName,
+            String sourceUrl,
+            byte[] sourceUrlHash,
+            Instant publishedAt,
+            Instant collectedAt
+    ) {
+        return new NewsArticle(
+                title,
+                summary,
+                sourceName,
+                sourceUrl,
+                sourceUrlHash,
+                toLocalDateTime(publishedAt),
+                toLocalDateTime(collectedAt)
+        );
+    }
+
+    public boolean updateFrom(
+            String title,
+            String summary,
+            String sourceName,
+            String sourceUrl,
+            Instant publishedAt,
+            Instant collectedAt
+    ) {
+        boolean changed = false;
+
+        if (hasText(title) && !title.equals(this.title)) {
+            this.title = title;
+            changed = true;
+        }
+        if (hasText(summary) && !summary.equals(this.summary)) {
+            this.summary = summary;
+            changed = true;
+        }
+        if (hasText(sourceName) && !sourceName.equals(this.sourceName)) {
+            this.sourceName = sourceName;
+            changed = true;
+        }
+        if (hasText(sourceUrl) && !sourceUrl.equals(this.sourceUrl)) {
+            this.sourceUrl = sourceUrl;
+            changed = true;
+        }
+
+        LocalDateTime nextPublishedAt = toLocalDateTime(publishedAt);
+        if (!nextPublishedAt.equals(this.publishedAt)) {
+            this.publishedAt = nextPublishedAt;
+            changed = true;
+        }
+
+        this.collectedAt = toLocalDateTime(collectedAt);
+
+        return changed;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static LocalDateTime toLocalDateTime(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 }

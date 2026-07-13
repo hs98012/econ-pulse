@@ -8,5 +8,7 @@ public interface NewsArticleRepository extends JpaRepository<NewsArticle, Long> 
 
     Optional<NewsArticle> findBySourceUrl(String sourceUrl);
 
+    Optional<NewsArticle> findBySourceUrlHash(byte[] sourceUrlHash);
+
     boolean existsBySourceUrl(String sourceUrl);
 }

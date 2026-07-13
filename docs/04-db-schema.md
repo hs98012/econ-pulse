@@ -51,6 +51,21 @@
 긴 URL은 SHA-256 해시로 유일성을 보장하고 원본 URL도 보존한다. utf8mb4 인덱스
 길이 제한 때문에 원본 URL 문자열에는 직접 unique index를 두지 않는다.
 
+`source_url` 저장 전 정규화 정책은 다음과 같다.
+
+- 앞뒤 공백 제거
+- URI 문법 검증
+- scheme과 host 소문자화
+- fragment 제거
+- HTTP 80, HTTPS 443 기본 포트 제거
+- query parameter 보존
+
+정규화 URL의 UTF-8 바이트를 SHA-256으로 계산해 `source_url_hash BINARY(32)`에
+저장한다. 같은 해시가 이미 있으면 신규 행을 만들지 않고 기존 행을 재사용한다.
+기존 기사와 외부 응답의 title, summary, sourceName, sourceUrl, publishedAt이
+다르면 갱신하고, 같으면 건너뜀으로 집계한다. `collected_at`은 재수집 시각으로
+갱신한다. DB unique 충돌은 최종 안전장치이며 현재 정책은 수집 트랜잭션 실패다.
+
 ### `term_news_mappings`
 
 | 컬럼 | 타입 | 제약 |

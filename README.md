@@ -3,10 +3,10 @@
 경제용어 사전에 최신 뉴스를 자동 매핑하고 Redis 기반 실시간 인기 검색어를
 제공하는 Spring Boot 백엔드입니다.
 
-현재 구현 범위는 Phase 3 시작 지점입니다. Phase 2 경제용어 사전 API는 완료됐고,
-Phase 3의 첫 작업으로 뉴스 제공자 Port와 테스트용 Fake Adapter가 추가됐습니다.
-실제 외부 뉴스 API 연동, 뉴스 저장 워크플로, 뉴스 자동 매핑, 스케줄러, 내부
-동기화 API, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+현재 구현 범위는 Phase 3 진행 중입니다. Phase 2 경제용어 사전 API는 완료됐고,
+Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionService`의
+멱등 MySQL 저장 흐름이 구현됐습니다. 실제 외부 뉴스 API 연동, 뉴스 자동 매핑,
+스케줄러, 내부 동기화 API, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
 
 ## 기술 스택
 
@@ -40,6 +40,17 @@ Port 바깥 계층이 제공자별 HTML 형식을 알지 않게 합니다.
 
 실제 외부 Adapter를 추가할 때 provider별 요청/응답 DTO는 adapter 내부 패키지에만
 두고, 애플리케이션 계층에는 Port 모델만 반환해야 합니다.
+
+`NewsIngestionService`는 `NewsProvider`를 호출해 받은 기사를 `news_articles`에
+저장합니다. 중복 기준은 정규화된 `sourceUrl`의 SHA-256 해시(`source_url_hash`)
+입니다. URL은 앞뒤 공백 제거, URI 문법 검증, scheme/host 소문자화, fragment 제거,
+기본 포트 제거를 적용하고 query parameter는 임의로 제거하지 않습니다.
+
+수집 결과는 `fetched`, `created`, `updated`, `skipped`로 집계합니다. 신규 해시는
+생성, 기존 해시는 제목·요약·출처·URL·발행시각 중 실제 변경이 있으면 갱신,
+완전히 같은 기사나 동일 응답 내 중복 URL은 건너뜀으로 계산합니다. 기존 정상
+요약은 외부 응답의 빈 요약으로 덮어쓰지 않습니다. Provider 오류가 발생하면 저장
+작업을 수행하지 않고, DB unique 충돌은 수집 예외로 변환해 트랜잭션을 실패시킵니다.
 
 ## 로컬 실행
 

@@ -30,7 +30,9 @@
 
 ### 이후 Phase 예정 API
 
-아래 API는 Phase 3 또는 Phase 4에서 구현한다. Phase 2 완료 시점에는 구현하지 않는다.
+아래 API는 Phase 3 또는 Phase 4에서 구현한다. 저장 뉴스 목록·상세의 application
+조회 기능은 구현됐지만 뉴스 Controller가 없으므로 `GET /news` 엔드포인트는 아직
+외부에 공개되지 않는다.
 
 | Method | Path | 설명 |
 |---|---|---|
@@ -237,6 +239,17 @@ Validation 실패: `400 INVALID_REQUEST`
   "confidenceScore": 1.0
 }
 ```
+
+### 저장 뉴스 조회 application 계약
+
+`NewsQueryService` 목록은 page 0 이상, size 1~100을 허용하며 기본값 후보는
+page 0, size 20이다. DB에서 `publishedAt DESC, id DESC`로 정렬한 뒤 공통 페이지
+구조로 변환한다. 상세 응답은 목록 필드에 `collectedAt`, `createdAt`, `updatedAt`을
+추가한다. 모든 시간은 UTC `Instant`에 해당하는 ISO 8601 값이다.
+
+존재하지 않는 ID는 `NewsNotFoundException(ErrorCode.NEWS_NOT_FOUND)`을 발생시켜
+향후 Controller에서 `404 NEWS_NOT_FOUND`로 변환할 수 있다. 현재 HTTP 엔드포인트
+자체는 구현하지 않았다.
 
 ### 인기 용어 항목
 

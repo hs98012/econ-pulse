@@ -1,7 +1,7 @@
 package com.econpulse.term.api;
 
 import com.econpulse.term.api.dto.TermCreateRequest;
-import com.econpulse.term.api.dto.PageResponse;
+import com.econpulse.global.api.PageResponse;
 import com.econpulse.term.api.dto.TermDetailResponse;
 import com.econpulse.term.api.dto.TermSummaryResponse;
 import com.econpulse.term.api.dto.TermUpdateRequest;

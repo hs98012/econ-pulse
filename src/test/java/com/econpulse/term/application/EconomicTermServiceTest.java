@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.econpulse.support.AbstractIntegrationTest;
-import com.econpulse.term.api.dto.PageResponse;
+import com.econpulse.global.api.PageResponse;
 import com.econpulse.term.api.dto.TermCreateRequest;
 import com.econpulse.term.api.dto.TermDetailResponse;
 import com.econpulse.term.api.dto.TermSummaryResponse;

@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @SpringBootTest
 class NewsArticleRepositoryTest extends AbstractIntegrationTest {
@@ -76,7 +78,45 @@ class NewsArticleRepositoryTest extends AbstractIntegrationTest {
         assertThat(foundArticle.getCollectedAt()).isEqualTo(LocalDateTime.parse("2026-07-15T00:00:00"));
     }
 
+    @Test
+    void pagesByPublishedAtDescendingThenIdDescending() {
+        NewsArticle oldest = newsArticleRepository.saveAndFlush(article(
+                "https://example.com/news/oldest", "2026-07-12T00:00:00Z"));
+        NewsArticle sameTimeLowerId = newsArticleRepository.saveAndFlush(article(
+                "https://example.com/news/same-1", "2026-07-13T00:00:00Z"));
+        NewsArticle sameTimeHigherId = newsArticleRepository.saveAndFlush(article(
+                "https://example.com/news/same-2", "2026-07-13T00:00:00Z"));
+        NewsArticle newest = newsArticleRepository.saveAndFlush(article(
+                "https://example.com/news/newest", "2026-07-14T00:00:00Z"));
+
+        Page<NewsArticle> firstPage = newsArticleRepository
+                .findAllByOrderByPublishedAtDescIdDesc(PageRequest.of(0, 2));
+        Page<NewsArticle> nextPage = newsArticleRepository
+                .findAllByOrderByPublishedAtDescIdDesc(PageRequest.of(1, 2));
+
+        assertThat(firstPage.getContent()).extracting(NewsArticle::getId)
+                .containsExactly(newest.getId(), sameTimeHigherId.getId());
+        assertThat(nextPage.getContent()).extracting(NewsArticle::getId)
+                .containsExactly(sameTimeLowerId.getId(), oldest.getId());
+        assertThat(firstPage.getSize()).isEqualTo(2);
+        assertThat(firstPage.getTotalElements()).isEqualTo(4);
+        assertThat(firstPage.getTotalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void returnsEmptyPageFromEmptyFlywaySchema() {
+        Page<NewsArticle> page = newsArticleRepository
+                .findAllByOrderByPublishedAtDescIdDesc(PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+        assertThat(page.getTotalElements()).isZero();
+    }
+
     private NewsArticle article(String sourceUrl) {
+        return article(sourceUrl, "2026-07-13T00:00:00Z");
+    }
+
+    private NewsArticle article(String sourceUrl, String publishedAt) {
         NewsUrl newsUrl = newsUrlHasher.hash(sourceUrl);
         return NewsArticle.create(
                 "제목",
@@ -84,7 +124,7 @@ class NewsArticleRepositoryTest extends AbstractIntegrationTest {
                 "Example News",
                 newsUrl.normalizedUrl(),
                 newsUrl.hash(),
-                Instant.parse("2026-07-13T00:00:00Z"),
+                Instant.parse(publishedAt),
                 Instant.parse("2026-07-14T00:00:00Z")
         );
     }

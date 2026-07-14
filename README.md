@@ -5,8 +5,10 @@
 
 현재 구현 범위는 Phase 3 진행 중입니다. Phase 2 경제용어 사전 API는 완료됐고,
 Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionService`의
-멱등 MySQL 저장 흐름이 구현됐습니다. 실제 외부 뉴스 API 연동, 뉴스 자동 매핑,
-스케줄러, 내부 동기화 API, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+멱등 MySQL 저장 흐름과 `NewsQueryService`의 저장 뉴스 목록·상세 조회가
+구현됐습니다. 뉴스 Controller와 공개 뉴스 API, 실제 외부 뉴스 API 연동, 뉴스
+자동 매핑, 스케줄러, 내부 동기화 API, Redis 인기 검색어 기능은 아직 구현하지
+않습니다.
 
 ## 기술 스택
 
@@ -51,6 +53,19 @@ Port 바깥 계층이 제공자별 HTML 형식을 알지 않게 합니다.
 완전히 같은 기사나 동일 응답 내 중복 URL은 건너뜀으로 계산합니다. 기존 정상
 요약은 외부 응답의 빈 요약으로 덮어쓰지 않습니다. Provider 오류가 발생하면 저장
 작업을 수행하지 않고, DB unique 충돌은 수집 예외로 변환해 트랜잭션을 실패시킵니다.
+
+## Phase 3 저장 뉴스 조회
+
+`NewsQueryService`는 수집된 `NewsArticle`을 JPA 엔티티 대신 목록용
+`NewsSummaryResponse`와 상세용 `NewsDetailResponse`로 반환합니다. 목록은
+Repository 쿼리에서 `publishedAt DESC, id DESC`로 정렬하고 page/size를 적용하며,
+page는 0 이상, size는 1~100입니다. 향후 Controller 기본값으로 사용할 수 있도록
+`NewsPageQuery.defaults()`는 page 0, size 20을 제공합니다.
+
+DB의 UTC `DATETIME(6)`에 매핑된 `LocalDateTime`은 공통 변환기를 거쳐 DTO에서
+`Instant`로 노출합니다. 존재하지 않는 뉴스는 `NewsNotFoundException`과
+`ErrorCode.NEWS_NOT_FOUND`로 표현합니다. 이 기능은 application 계층까지만
+구현됐으며 `/api/v1/news` Controller와 공개 엔드포인트는 아직 없습니다.
 
 ## 로컬 실행
 

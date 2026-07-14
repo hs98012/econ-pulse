@@ -4,7 +4,7 @@
 
 EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 is complete: the economic term glossary API, persistence, migration, tests, local seed policy, and Phase 2 documentation are in place. Phase 3 is in progress.
 
-Implemented Phase 3 scope includes the provider-neutral news search Port, immutable provider request/response models, provider exception model, an in-memory Fake Adapter for tests/local development, `NewsIngestionService` for idempotent MySQL storage by normalized source URL hash, and `NewsQueryService` for stored-news list/detail application queries. News lists are paged in the repository by `publishedAt DESC, id DESC`. News controllers and public news APIs, real external provider integration, HTTP clients, automatic term-news mapping, schedulers, and internal sync APIs are not implemented yet. Do not implement Redis popular-search behavior until Phase 4.
+Implemented Phase 3 scope includes the provider-neutral news search Port, immutable provider request/response models, provider exception model, an in-memory Fake Adapter for tests/local development, `NewsIngestionService` for idempotent MySQL storage by normalized source URL hash, `NewsQueryService`, and public stored-news list/detail APIs. News lists are paged in the repository by `publishedAt DESC, id DESC`. Real external provider integration, HTTP clients, automatic term-news mapping and related-news APIs, schedulers, and internal sync APIs are not implemented yet. Do not implement Redis popular-search behavior until Phase 4.
 
 ## Source of Truth
 

@@ -28,17 +28,20 @@
 | `PUT` | `/api/v1/terms/{termId}` | 용어 수정 |
 | `DELETE` | `/api/v1/terms/{termId}` | 용어 비활성화 삭제 |
 
+### Phase 3 구현 완료 API
+
+| Method | Path | 설명 |
+|---|---|---|
+| `GET` | `/api/v1/news?page=&size=` | 수집된 뉴스 최신순 조회 |
+| `GET` | `/api/v1/news/{newsId}` | 뉴스 상세 메타데이터 조회 |
+
 ### 이후 Phase 예정 API
 
-아래 API는 Phase 3 또는 Phase 4에서 구현한다. 저장 뉴스 목록·상세의 application
-조회 기능은 구현됐지만 뉴스 Controller가 없으므로 `GET /news` 엔드포인트는 아직
-외부에 공개되지 않는다.
+아래 API는 이후 Phase에서 구현한다.
 
 | Method | Path | 설명 |
 |---|---|---|
 | `GET` | `/api/v1/terms/{termId}/news?page=&size=` | 용어 관련 최신 뉴스 조회 |
-| `GET` | `/api/v1/news?page=&size=` | 수집된 뉴스 최신순 조회 |
-| `GET` | `/api/v1/news/{newsId}` | 뉴스 상세 메타데이터 조회 |
 | `GET` | `/api/v1/popular-terms?limit=10` | 실시간 인기 용어 조회 |
 | `POST` | `/internal/api/v1/news/sync` | 뉴스 수집 작업 실행 |
 | `POST` | `/internal/api/v1/mappings/rebuild` | 용어-뉴스 매핑 재처리 |
@@ -240,16 +243,94 @@ Validation 실패: `400 INVALID_REQUEST`
 }
 ```
 
-### 저장 뉴스 조회 application 계약
+### 저장 뉴스 목록
 
-`NewsQueryService` 목록은 page 0 이상, size 1~100을 허용하며 기본값 후보는
-page 0, size 20이다. DB에서 `publishedAt DESC, id DESC`로 정렬한 뒤 공통 페이지
-구조로 변환한다. 상세 응답은 목록 필드에 `collectedAt`, `createdAt`, `updatedAt`을
-추가한다. 모든 시간은 UTC `Instant`에 해당하는 ISO 8601 값이다.
+`GET /api/v1/news?page=0&size=20`
 
-존재하지 않는 ID는 `NewsNotFoundException(ErrorCode.NEWS_NOT_FOUND)`을 발생시켜
-향후 Controller에서 `404 NEWS_NOT_FOUND`로 변환할 수 있다. 현재 HTTP 엔드포인트
-자체는 구현하지 않았다.
+- page 기본값은 0이며 0 이상이어야 한다.
+- size 기본값은 20이며 1~100이어야 한다.
+- 정렬은 `publishedAt DESC`, 발행 시각이 같으면 `id DESC`이며 클라이언트 sort는 지원하지 않는다.
+- 정렬과 페이징은 Repository 쿼리에서 수행한다.
+- 숫자 타입 오류와 범위 오류는 `400 INVALID_REQUEST`를 반환한다.
+
+응답: `200 OK`
+
+```json
+{
+  "content": [
+    {
+      "id": 10,
+      "title": "한국은행 기준금리 동결",
+      "summary": "통화정책 결정 배경을 설명한다.",
+      "sourceName": "Example News",
+      "sourceUrl": "https://example.com/news/10",
+      "publishedAt": "2026-07-14T02:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+빈 목록도 `200 OK`를 반환한다.
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0
+}
+```
+
+잘못된 page 또는 size: `400 INVALID_REQUEST`
+
+```json
+{
+  "code": "INVALID_REQUEST",
+  "message": "Invalid request.",
+  "timestamp": "2026-07-14T02:00:00Z"
+}
+```
+
+### 저장 뉴스 상세
+
+`GET /api/v1/news/10`
+
+`newsId`는 양수여야 한다. 0, 음수, 숫자가 아닌 값은 `400 INVALID_REQUEST`를
+반환하며 조회 서비스로 전달하지 않는다.
+
+응답: `200 OK`
+
+```json
+{
+  "id": 10,
+  "title": "한국은행 기준금리 동결",
+  "summary": "통화정책 결정 배경을 설명한다.",
+  "sourceName": "Example News",
+  "sourceUrl": "https://example.com/news/10",
+  "publishedAt": "2026-07-14T02:00:00Z",
+  "collectedAt": "2026-07-14T02:05:00Z",
+  "createdAt": "2026-07-14T02:05:00Z",
+  "updatedAt": "2026-07-14T02:05:00Z"
+}
+```
+
+모든 시간은 UTC ISO 8601 형식이다. 목록과 상세 모두 `sourceUrlHash`와
+`termMappings`를 노출하지 않으며 목록에는 수집·생성·수정 시각도 노출하지 않는다.
+
+존재하지 않는 뉴스: `404 NEWS_NOT_FOUND`
+
+```json
+{
+  "code": "NEWS_NOT_FOUND",
+  "message": "News article was not found.",
+  "timestamp": "2026-07-14T02:00:00Z"
+}
+```
 
 ### 인기 용어 항목
 

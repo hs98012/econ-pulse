@@ -1,0 +1,14 @@
+{
+  "total": 1,
+  "start": 1,
+  "display": 10,
+  "items": [
+    {
+      "title": "<b>기준금리</b> 인하",
+      "originallink": "https://news.example.com/articles/1",
+      "link": "https://n.news.naver.com/article/001/1",
+      "description": "변경된 통화정책 결정",
+      "pubDate": "Tue, 14 Jul 2026 12:00:00 +0900"
+    }
+  ]
+}

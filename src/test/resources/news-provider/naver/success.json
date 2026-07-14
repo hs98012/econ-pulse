@@ -1,0 +1,15 @@
+{
+  "lastBuildDate": "Tue, 14 Jul 2026 11:00:00 +0900",
+  "total": 21,
+  "start": 21,
+  "display": 10,
+  "items": [{
+    "title": "기준금리 동결",
+    "originallink": "https://news.example.com/articles/1",
+    "link": "https://n.news.naver.com/article/001/1",
+    "description": "통화정책 결정",
+    "pubDate": "Tue, 14 Jul 2026 11:00:00 +0900",
+    "unknownFutureField": "ignored"
+  }],
+  "unknownTopLevel": true
+}

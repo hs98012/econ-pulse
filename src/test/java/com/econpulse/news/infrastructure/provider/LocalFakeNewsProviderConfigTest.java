@@ -20,6 +20,7 @@ class LocalFakeNewsProviderConfigTest {
         new ApplicationContextRunner()
                 .withInitializer(context -> context.getEnvironment().setActiveProfiles("local"))
                 .withUserConfiguration(LocalFakeNewsProviderConfig.class)
+                .withPropertyValues("econpulse.news.provider.type=fake")
                 .run(context -> assertThat(context).hasSingleBean(NewsProvider.class));
     }
 }

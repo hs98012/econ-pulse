@@ -1,0 +1,21 @@
+{
+  "total": 2,
+  "start": 1,
+  "display": 20,
+  "items": [
+    {
+      "title": "<b>기준금리</b> <em>동결</em> &quot;결정&quot;",
+      "originallink": "https://news.example.com/articles/html",
+      "link": "https://n.news.naver.com/html",
+      "description": "A&amp;B &lt;전망&gt; &#39;확인&#39;   연속  공백",
+      "pubDate": "Tue, 14 Jul 2026 12:00:00 +0900"
+    },
+    {
+      "title": "요약 없는 기사",
+      "originallink": "https://news.example.com/articles/no-summary",
+      "link": "https://n.news.naver.com/no-summary",
+      "description": null,
+      "pubDate": "Tue, 14 Jul 2026 10:00:00 +0900"
+    }
+  ]
+}

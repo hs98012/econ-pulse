@@ -58,6 +58,18 @@ abstract class AbstractHttpNewsProviderContractTest {
         return "error-body.json";
     }
 
+    protected String expectedProviderArticleId() {
+        return "external-1";
+    }
+
+    protected String expectedSourceName() {
+        return "Example News";
+    }
+
+    protected boolean expectedHasNext() {
+        return true;
+    }
+
     protected List<String> invalidPayloadFixtures() {
         return List.of(
                 "missing-id.json",
@@ -91,13 +103,13 @@ abstract class AbstractHttpNewsProviderContractTest {
         assertThat(result.page()).isEqualTo(2);
         assertThat(result.size()).isEqualTo(10);
         assertThat(result.totalElements()).hasValue(21);
-        assertThat(result.hasNext()).isTrue();
+        assertThat(result.hasNext()).isEqualTo(expectedHasNext());
         assertThat(result.articles()).hasSize(1);
         NewsProviderArticle article = result.articles().get(0);
-        assertThat(article.providerArticleId()).isEqualTo("external-1");
+        assertThat(article.providerArticleId()).isEqualTo(expectedProviderArticleId());
         assertThat(article.title()).isEqualTo("기준금리 동결");
         assertThat(article.summary()).isEqualTo("통화정책 결정");
-        assertThat(article.sourceName()).isEqualTo("Example News");
+        assertThat(article.sourceName()).isEqualTo(expectedSourceName());
         assertThat(article.sourceUrl()).isEqualTo("https://news.example.com/articles/1");
         assertThat(article.publishedAt()).isEqualTo(Instant.parse("2026-07-14T02:00:00Z"));
     }
@@ -217,6 +229,18 @@ abstract class AbstractHttpNewsProviderContractTest {
 
     private NewsProvider provider() {
         return createProvider(server.url("/").toString(), CONNECT_TIMEOUT, READ_TIMEOUT);
+    }
+
+    protected final NewsProvider contractProvider() {
+        return provider();
+    }
+
+    protected final MockWebServer mockServer() {
+        return server;
+    }
+
+    protected final void enqueueFixture(int status, String fixture) {
+        enqueue(status, fixture);
     }
 
     private void enqueue(int status, String fixture) {

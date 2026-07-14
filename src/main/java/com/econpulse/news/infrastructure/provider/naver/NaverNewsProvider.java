@@ -1,19 +1,14 @@
-package com.econpulse.news.infrastructure.provider.http;
+package com.econpulse.news.infrastructure.provider.naver;
 
 import com.econpulse.news.application.port.NewsProvider;
-import com.econpulse.news.application.port.NewsProviderArticle;
 import com.econpulse.news.application.port.NewsProviderErrorType;
 import com.econpulse.news.application.port.NewsProviderException;
 import com.econpulse.news.application.port.NewsSearchQuery;
 import com.econpulse.news.application.port.NewsSearchResult;
 import com.econpulse.news.application.port.NewsSort;
-import com.econpulse.news.infrastructure.provider.ExternalNewsTextSanitizer;
-import java.net.URI;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.net.http.HttpClient;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
-import java.util.OptionalLong;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
@@ -21,36 +16,52 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
-final class ReferenceHttpNewsProviderAdapter implements NewsProvider {
+public class NaverNewsProvider implements NewsProvider {
 
+    static final int MAX_START = 1000;
+    private static final int MAX_RESPONSE_BYTES = 1_000_000;
+
+    private final NaverNewsProperties properties;
+    private final ObjectMapper objectMapper;
+    private final NaverNewsResponseMapper responseMapper;
     private final RestClient restClient;
 
-    ReferenceHttpNewsProviderAdapter(String baseUrl, Duration connectTimeout, Duration readTimeout) {
+    public NaverNewsProvider(NaverNewsProperties properties, ObjectMapper objectMapper) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        this.responseMapper = new NaverNewsResponseMapper();
         HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(connectTimeout)
+                .connectTimeout(properties.connectTimeout())
                 .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(readTimeout);
+        requestFactory.setReadTimeout(properties.readTimeout());
         this.restClient = RestClient.builder()
-                .baseUrl(baseUrl)
+                .baseUrl(properties.baseUrl())
                 .requestFactory(requestFactory)
                 .build();
     }
 
     @Override
     public NewsSearchResult search(NewsSearchQuery query) {
+        int start = calculateStart(query);
         try {
-            ExternalResponse response = restClient.get()
+            byte[] body = restClient.get()
                     .uri(
-                            "/search?query={query}&start={start}&display={size}&sort={sort}",
+                            "/v1/search/news.json?query={query}&display={display}&start={start}&sort={sort}",
                             query.query(),
-                            query.page() * query.size() + 1,
                             query.size(),
+                            start,
                             toExternalSort(query.sort())
                     )
+                    .header("X-Naver-Client-Id", properties.clientId())
+                    .header("X-Naver-Client-Secret", properties.clientSecret())
                     .retrieve()
-                    .body(ExternalResponse.class);
-            return toResult(response, query);
+                    .body(byte[].class);
+            if (body == null || body.length > MAX_RESPONSE_BYTES) {
+                throw invalidResponse();
+            }
+            NaverNewsSearchResponse response = objectMapper.readValue(body, NaverNewsSearchResponse.class);
+            return responseMapper.map(response, query, start);
         } catch (RestClientResponseException exception) {
             throw statusException(exception.getStatusCode());
         } catch (ResourceAccessException exception) {
@@ -68,63 +79,20 @@ final class ReferenceHttpNewsProviderAdapter implements NewsProvider {
                 throw new NewsProviderException(NewsProviderErrorType.TIMEOUT, "News provider timed out.");
             }
             throw invalidResponse();
-        } catch (IllegalArgumentException exception) {
+        } catch (IOException | IllegalArgumentException exception) {
             throw invalidResponse();
         }
     }
 
-    private NewsSearchResult toResult(ExternalResponse response, NewsSearchQuery query) {
-        if (response == null || response.items() == null) {
-            throw invalidResponse();
-        }
-        List<NewsProviderArticle> articles = response.items().stream()
-                .map(this::toArticle)
-                .toList();
-        OptionalLong total = response.total() == null
-                ? OptionalLong.empty()
-                : OptionalLong.of(response.total());
-        return new NewsSearchResult(articles, query.page(), query.size(), total, response.hasNext());
-    }
-
-    private NewsProviderArticle toArticle(ExternalArticle article) {
-        if (article == null) {
-            throw invalidResponse();
-        }
-        String title = ExternalNewsTextSanitizer.sanitize(article.title());
-        String summary = ExternalNewsTextSanitizer.sanitize(article.summary());
-        String sourceUrl = requireText(article.sourceUrl());
-        String sourceName = ExternalNewsTextSanitizer.sanitize(article.sourceName());
-        if (sourceName == null || sourceName.isBlank()) {
-            sourceName = sourceHost(sourceUrl);
-        }
-        try {
-            return new NewsProviderArticle(
-                    requireText(article.id()),
-                    requireText(title),
-                    summary,
-                    sourceName,
-                    sourceUrl,
-                    Instant.parse(requireText(article.publishedAt()))
+    private int calculateStart(NewsSearchQuery query) {
+        long start = (long) query.page() * query.size() + 1L;
+        if (start > MAX_START) {
+            throw new NewsProviderException(
+                    NewsProviderErrorType.INVALID_REQUEST,
+                    "Requested news page exceeds provider limits."
             );
-        } catch (RuntimeException exception) {
-            throw invalidResponse();
         }
-    }
-
-    private String requireText(String value) {
-        if (value == null || value.isBlank()) {
-            throw invalidResponse();
-        }
-        return value;
-    }
-
-    private String sourceHost(String sourceUrl) {
-        try {
-            String host = URI.create(sourceUrl).getHost();
-            return requireText(host);
-        } catch (RuntimeException exception) {
-            throw invalidResponse();
-        }
+        return (int) start;
     }
 
     private String toExternalSort(NewsSort sort) {
@@ -166,8 +134,7 @@ final class ReferenceHttpNewsProviderAdapter implements NewsProvider {
     private boolean hasNetworkIoCause(Throwable exception) {
         Throwable current = exception.getCause();
         while (current != null) {
-            if (current instanceof java.io.IOException
-                    && !(current instanceof com.fasterxml.jackson.core.JsonProcessingException)) {
+            if (current instanceof IOException) {
                 return true;
             }
             current = current.getCause();
@@ -180,22 +147,5 @@ final class ReferenceHttpNewsProviderAdapter implements NewsProvider {
                 NewsProviderErrorType.INVALID_RESPONSE,
                 "News provider returned an invalid response."
         );
-    }
-
-    private record ExternalResponse(
-            List<ExternalArticle> items,
-            Long total,
-            boolean hasNext
-    ) {
-    }
-
-    private record ExternalArticle(
-            String id,
-            String title,
-            String summary,
-            String sourceName,
-            String sourceUrl,
-            String publishedAt
-    ) {
     }
 }

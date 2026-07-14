@@ -1,6 +1,7 @@
 package com.econpulse.news.application.port;
 
 public enum NewsProviderErrorType {
+    INVALID_REQUEST(false),
     AUTHENTICATION_FAILED(false),
     RATE_LIMITED(true),
     TIMEOUT(true),

@@ -1,0 +1,9 @@
+{
+  "total": 3,
+  "start": 1,
+  "display": 2,
+  "items": [
+    {"title":"one","originallink":"https://example.com/1","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"two","originallink":"https://example.com/2","pubDate":"Tue, 14 Jul 2026 10:00:00 +0900"}
+  ]
+}

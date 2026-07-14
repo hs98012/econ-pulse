@@ -1,0 +1,17 @@
+{
+  "total": 2000,
+  "start": 991,
+  "display": 10,
+  "items": [
+    {"title":"1","originallink":"https://example.com/1","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"2","originallink":"https://example.com/2","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"3","originallink":"https://example.com/3","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"4","originallink":"https://example.com/4","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"5","originallink":"https://example.com/5","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"6","originallink":"https://example.com/6","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"7","originallink":"https://example.com/7","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"8","originallink":"https://example.com/8","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"9","originallink":"https://example.com/9","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"},
+    {"title":"10","originallink":"https://example.com/10","pubDate":"Tue, 14 Jul 2026 11:00:00 +0900"}
+  ]
+}

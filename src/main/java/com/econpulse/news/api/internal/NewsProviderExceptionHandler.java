@@ -23,6 +23,9 @@ public class NewsProviderExceptionHandler {
     }
 
     private ErrorCode toErrorCode(NewsProviderErrorType errorType) {
+        if (errorType == NewsProviderErrorType.INVALID_REQUEST) {
+            return ErrorCode.INVALID_REQUEST;
+        }
         if (errorType == NewsProviderErrorType.INVALID_RESPONSE
                 || errorType == NewsProviderErrorType.AUTHENTICATION_FAILED) {
             return ErrorCode.NEWS_PROVIDER_BAD_RESPONSE;

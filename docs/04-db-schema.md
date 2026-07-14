@@ -79,6 +79,15 @@
 
 유니크 인덱스는 `(economic_term_id, news_article_id)`, 뉴스 조회 인덱스는 `(economic_term_id, news_article_id)`와 `(news_article_id)`로 둔다.
 
+Application 입력 score는 0.0000~1.0000과 소수점 최대 4자리를 검증하고 scale 4로
+정규화한다. 같은 조합이 없으면 생성하고, `EXACT_NAME > ALIAS` 우선순위 또는 같은
+유형의 더 높은 score인 경우에만 기존 근거와 `matched_at`을 갱신한다. 동일·약한
+근거는 기존 행과 `matched_at`을 유지한다. INACTIVE 용어는 매핑할 수 없다.
+
+unique 제약은 최종 동시성 안전장치다. 현재 순차 요청은 멱등 처리하고 동시 신규 insert
+충돌은 application 충돌 예외로 트랜잭션을 실패시킨다. 같은 트랜잭션에서 rollback-only
+상태를 무시하고 재조회하지 않으며, 자동 재시도나 잠금은 운영 준비 단계에서 검토한다.
+
 ### `popular_term_snapshots`
 
 | 컬럼 | 타입 | 제약 |

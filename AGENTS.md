@@ -4,7 +4,7 @@
 
 EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 is complete: the economic term glossary API, persistence, migration, tests, local seed policy, and Phase 2 documentation are in place. Phase 3 is in progress.
 
-Implemented Phase 3 scope includes the provider-neutral news search Port, immutable provider models, a local/test-only Fake Adapter, the conditional `NaverNewsProvider`, idempotent ingestion, stored-news APIs, the conditional internal sync API, and reusable HTTP Adapter contract tests backed by local MockWebServer fixtures. The internal sync API is disabled by default. Naver is selected only with `econpulse.news.provider.type=naver` and requires environment-provided credentials; automated tests never call the public Naver endpoint. Automatic term-news mapping, related-news APIs, and schedulers are not implemented. Do not implement Redis popular-search behavior until Phase 4.
+Implemented Phase 3 scope includes the provider-neutral news search Port, Fake and conditional Naver Adapters, idempotent ingestion, stored-news APIs, the conditional internal sync API, reusable HTTP Adapter contract tests, and explicit `TermNewsMapping` application storage. Mapping storage is idempotent by term/article pair and only stronger evidence replaces existing evidence. Automatic term-name/alias detection, related-news APIs, reprocessing APIs, and schedulers are not implemented. Do not implement Redis popular-search behavior until Phase 4.
 
 ## Source of Truth
 

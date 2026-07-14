@@ -71,10 +71,38 @@ public class TermNewsMapping {
             BigDecimal confidenceScore,
             LocalDateTime matchedAt
     ) {
-        this.economicTerm = economicTerm;
-        this.newsArticle = newsArticle;
-        this.matchType = matchType;
-        this.confidenceScore = confidenceScore;
-        this.matchedAt = matchedAt;
+        this.economicTerm = requireNonNull(economicTerm, "economicTerm");
+        this.newsArticle = requireNonNull(newsArticle, "newsArticle");
+        this.matchType = requireNonNull(matchType, "matchType");
+        this.confidenceScore = requireNonNull(confidenceScore, "confidenceScore");
+        this.matchedAt = requireNonNull(matchedAt, "matchedAt");
+    }
+
+    public boolean hasSameEvidence(MatchType type, BigDecimal score) {
+        return matchType == type && confidenceScore.compareTo(requireNonNull(score, "score")) == 0;
+    }
+
+    public boolean updateEvidenceIfStronger(MatchType type, BigDecimal score, LocalDateTime newMatchedAt) {
+        requireNonNull(type, "type");
+        requireNonNull(score, "score");
+        requireNonNull(newMatchedAt, "matchedAt");
+
+        boolean strongerType = type.hasHigherPriorityThan(matchType);
+        boolean strongerScore = type == matchType && score.compareTo(confidenceScore) > 0;
+        if (!strongerType && !strongerScore) {
+            return false;
+        }
+
+        this.matchType = type;
+        this.confidenceScore = score;
+        this.matchedAt = newMatchedAt;
+        return true;
+    }
+
+    private static <T> T requireNonNull(T value, String name) {
+        if (value == null) {
+            throw new IllegalArgumentException(name + " must not be null");
+        }
+        return value;
     }
 }

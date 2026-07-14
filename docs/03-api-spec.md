@@ -35,6 +35,12 @@
 | `GET` | `/api/v1/news?page=&size=` | 수집된 뉴스 최신순 조회 |
 | `GET` | `/api/v1/news/{newsId}` | 뉴스 상세 메타데이터 조회 |
 
+### Phase 3 구현 완료 내부 API
+
+| Method | Path | 설명 |
+|---|---|---|
+| `POST` | `/internal/api/v1/news/sync` | 조건부 활성화 뉴스 수집 작업 실행 |
+
 ### 이후 Phase 예정 API
 
 아래 API는 이후 Phase에서 구현한다.
@@ -43,7 +49,6 @@
 |---|---|---|
 | `GET` | `/api/v1/terms/{termId}/news?page=&size=` | 용어 관련 최신 뉴스 조회 |
 | `GET` | `/api/v1/popular-terms?limit=10` | 실시간 인기 용어 조회 |
-| `POST` | `/internal/api/v1/news/sync` | 뉴스 수집 작업 실행 |
 | `POST` | `/internal/api/v1/mappings/rebuild` | 용어-뉴스 매핑 재처리 |
 
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
@@ -345,6 +350,65 @@ Validation 실패: `400 INVALID_REQUEST`
 
 `limit`은 1~100이어야 하며 잘못된 값은 `400 INVALID_REQUEST`를 반환한다.
 
-## 4. 내부 작업 응답
+## 4. 내부 뉴스 동기화
 
-내부 작업은 중복 요청에 안전해야 한다. 초기 구현은 동기 실행 결과로 처리 건수(`collected`, `created`, `updated`, `mapped`, `skipped`)를 반환한다. 작업 시간이 길어지면 별도 Job 리소스와 `202 Accepted` 방식으로 확장한다.
+`POST /internal/api/v1/news/sync`
+
+이 API는 외부 공개 대상이 아닌 운영자·내부 작업용 동기 실행 API다. 기본 설정
+`econpulse.internal.news-sync.enabled=false`에서는 Controller와 수집 서비스 Bean이
+등록되지 않는다. `local` profile은 local fixture용 `FakeNewsProvider`와 API를
+활성화하며 환경변수 `ECONPULSE_INTERNAL_NEWS_SYNC_ENABLED`로 명시적으로 덮어쓸 수
+있다. 운영 환경에서는 실제 Provider와 함께 별도 인증 또는 네트워크 제한이 필요하다.
+
+요청:
+
+```json
+{
+  "query": "기준금리",
+  "page": 0,
+  "size": 20,
+  "sort": "RECENCY"
+}
+```
+
+- query는 null, 빈 문자열, 공백 문자열일 수 없다.
+- page는 0 이상, size는 1~100이다.
+- sort는 `RECENCY` 또는 `RELEVANCE`만 허용한다.
+- 알 수 없는 필드, 잘못된 enum, 잘못된 JSON은 `400 INVALID_REQUEST`다.
+- API DTO는 Controller 경계에서 `NewsIngestionCommand`로 변환된다.
+
+응답: `200 OK`
+
+```json
+{
+  "fetched": 3,
+  "created": 2,
+  "updated": 1,
+  "skipped": 0
+}
+```
+
+동일 요청을 반복하면 정규화 URL SHA-256 해시 기준으로 기존 행을 재사용한다. 변경이
+없는 기사는 `skipped`로 집계하며 뉴스 행 수는 증가하지 않는다. 외부 Provider 호출이
+실패하면 저장을 시작하지 않는다.
+
+Provider 오류 정책:
+
+| Provider 오류 | HTTP | code |
+|---|---:|---|
+| 요청 제한, 시간 초과, 일시 장애 | 503 | `NEWS_PROVIDER_UNAVAILABLE` |
+| 인증 실패, 잘못된 Provider 응답 | 502 | `NEWS_PROVIDER_BAD_RESPONSE` |
+
+응답에는 API 키, Provider 원문 응답, 외부 라이브러리 예외명, stack trace, 재시도
+가능 여부를 노출하지 않는다.
+
+```json
+{
+  "code": "NEWS_PROVIDER_UNAVAILABLE",
+  "message": "News provider is temporarily unavailable.",
+  "timestamp": "2026-07-14T02:00:00Z"
+}
+```
+
+초기 버전은 요청이 끝날 때까지 기다리는 동기 `200 OK` 방식이다. 작업 시간이
+길어지면 별도 Job 리소스와 `202 Accepted` 방식으로 확장한다.

@@ -24,6 +24,13 @@ spring:
       timeout: 2s
   jackson:
     time-zone: UTC
+    deserialization:
+      fail-on-unknown-properties: true
+
+econpulse:
+  internal:
+    news-sync:
+      enabled: false
 
 server:
   port: ${SERVER_PORT:8080}

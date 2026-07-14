@@ -8,6 +8,8 @@ public enum ErrorCode {
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "News article was not found."),
     DUPLICATE_TERM_NAME(HttpStatus.CONFLICT, "Economic term name already exists."),
     DUPLICATE_TERM_ALIAS(HttpStatus.CONFLICT, "Economic term alias already exists."),
+    NEWS_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "News provider is temporarily unavailable."),
+    NEWS_PROVIDER_BAD_RESPONSE(HttpStatus.BAD_GATEWAY, "News provider returned an invalid response."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error.");
 
     private final HttpStatus status;

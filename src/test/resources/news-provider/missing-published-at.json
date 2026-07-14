@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "external-missing-date",
+      "title": "날짜 없음",
+      "sourceUrl": "https://news.example.com/articles/missing-date"
+    }
+  ],
+  "total": 1,
+  "hasNext": false
+}

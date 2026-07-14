@@ -54,6 +54,19 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule applicationAndDomainDoNotDependOnHttpClientTypes = noClasses()
+            .that()
+            .resideInAnyPackage("..application..", "..domain..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "org.springframework.web.client..",
+                    "org.springframework.http.client..",
+                    "feign..",
+                    "okhttp3.."
+            );
+
+    @ArchTest
     static final ArchRule newsApplicationDoesNotDependOnProviderImplementations = noClasses()
             .that()
             .resideInAPackage("..news.application..")

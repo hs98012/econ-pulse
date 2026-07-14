@@ -1,0 +1,5 @@
+{
+  "error": "provider-internal-stack-trace",
+  "apiKey": "fixture-secret-key",
+  "details": "full external error body must not escape"
+}

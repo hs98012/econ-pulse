@@ -82,22 +82,12 @@ public class FakeNewsProvider implements NewsProvider {
     private NewsProviderArticle clean(NewsProviderArticle article) {
         return new NewsProviderArticle(
                 article.providerArticleId(),
-                cleanExternalText(article.title()),
-                cleanExternalText(article.summary()),
+                ExternalNewsTextSanitizer.sanitize(article.title()),
+                ExternalNewsTextSanitizer.sanitize(article.summary()),
                 article.sourceName(),
                 article.sourceUrl(),
                 article.publishedAt()
         );
     }
 
-    private String cleanExternalText(String value) {
-        return value.replaceAll("<[^>]+>", "")
-                .replace("&quot;", "\"")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&#39;", "'")
-                .replace("&apos;", "'")
-                .replace("&nbsp;", " ");
-    }
 }

@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "id": "external-1",
+      "title": "기준금리 동결",
+      "summary": "통화정책 결정",
+      "sourceName": "Example News",
+      "sourceUrl": "https://news.example.com/articles/1",
+      "publishedAt": "2026-07-14T02:00:00Z"
+    }
+  ],
+  "total": 21,
+  "hasNext": true
+}

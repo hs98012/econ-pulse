@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "title": "식별값 없음",
+      "sourceUrl": "https://news.example.com/articles/missing-id",
+      "publishedAt": "2026-07-14T02:00:00Z"
+    }
+  ],
+  "total": 1,
+  "hasNext": false
+}

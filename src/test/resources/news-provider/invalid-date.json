@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "external-invalid-date",
+      "title": "날짜 형식 오류",
+      "sourceUrl": "https://news.example.com/articles/invalid-date",
+      "publishedAt": "14-07-2026 02:00"
+    }
+  ],
+  "total": 1,
+  "hasNext": false
+}

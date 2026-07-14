@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": "external-html",
+      "title": "<b>기준금리</b>  <em>동결</em> &quot;결정&quot;",
+      "summary": "A&amp;B &lt;전망&gt; &#39;확인&#39;   연속  공백",
+      "sourceName": null,
+      "sourceUrl": "https://news.example.com/articles/html",
+      "publishedAt": "2026-07-14T03:00:00Z"
+    },
+    {
+      "id": "external-null-summary",
+      "title": "요약 없는 기사",
+      "summary": null,
+      "sourceName": "Example News",
+      "sourceUrl": "https://news.example.com/articles/no-summary",
+      "publishedAt": "2026-07-14T01:00:00Z"
+    }
+  ],
+  "total": 2,
+  "hasNext": false
+}

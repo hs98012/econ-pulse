@@ -43,6 +43,13 @@ Port 바깥 계층이 제공자별 HTML 형식을 알지 않게 합니다.
 실제 외부 Adapter를 추가할 때 provider별 요청/응답 DTO는 adapter 내부 패키지에만
 두고, 애플리케이션 계층에는 Port 모델만 반환해야 합니다.
 
+실제 Adapter 구현 전 HTTP 경계는
+`docs/06-news-provider-adapter-contract.md`에 고정했습니다. 재사용 가능한 추상 계약
+테스트와 test-only `RestClient` reference Adapter가 OkHttp `MockWebServer`의 localhost
+응답을 사용해 요청·응답 매핑, HTML 정제, 401/403/429/5xx, timeout, 연결 실패,
+malformed JSON과 비밀값 비노출을 검증합니다. 실제 인터넷과 운영 Adapter는 사용하지
+않습니다.
+
 `NewsIngestionService`는 `NewsProvider`를 호출해 받은 기사를 `news_articles`에
 저장합니다. 중복 기준은 정규화된 `sourceUrl`의 SHA-256 해시(`source_url_hash`)
 입니다. URL은 앞뒤 공백 제거, URI 문법 검증, scheme/host 소문자화, fragment 제거,

@@ -12,11 +12,13 @@ import com.econpulse.support.AbstractIntegrationTest;
 import com.econpulse.term.domain.EconomicTerm;
 import com.econpulse.term.domain.EconomicTermAlias;
 import com.econpulse.term.domain.TermStatus;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -31,18 +33,21 @@ class EconomicTermRepositoryTest extends AbstractIntegrationTest {
     private final EconomicTermAliasRepository economicTermAliasRepository;
     private final NewsArticleRepository newsArticleRepository;
     private final TermNewsMappingRepository termNewsMappingRepository;
+    private final EntityManager entityManager;
 
     @Autowired
     EconomicTermRepositoryTest(
             EconomicTermRepository economicTermRepository,
             EconomicTermAliasRepository economicTermAliasRepository,
             NewsArticleRepository newsArticleRepository,
-            TermNewsMappingRepository termNewsMappingRepository
+            TermNewsMappingRepository termNewsMappingRepository,
+            EntityManager entityManager
     ) {
         this.economicTermRepository = economicTermRepository;
         this.economicTermAliasRepository = economicTermAliasRepository;
         this.newsArticleRepository = newsArticleRepository;
         this.termNewsMappingRepository = termNewsMappingRepository;
+        this.entityManager = entityManager;
     }
 
     @BeforeEach
@@ -134,6 +139,27 @@ class EconomicTermRepositoryTest extends AbstractIntegrationTest {
         Page<EconomicTerm> result = economicTermRepository.findAllByStatusWithAliases(TermStatus.ACTIVE, pageable());
 
         assertThat(result.getContent()).extracting(EconomicTerm::getName).containsExactly("CPI");
+    }
+
+    @Test
+    void loadsOnlyActiveTermsWithAliasesInStableIdOrder() {
+        EconomicTerm first = economicTermRepository.saveAndFlush(term(
+                "GDP", "gdp", List.of(alias("국내총생산", "국내총생산"))
+        ));
+        EconomicTerm second = economicTermRepository.saveAndFlush(term(
+                "CPI", "cpi", List.of(alias("소비자물가", "소비자물가"))
+        ));
+        EconomicTerm inactive = term("PPI", "ppi", List.of(alias("생산자물가", "생산자물가")));
+        inactive.deactivate();
+        economicTermRepository.saveAndFlush(inactive);
+        entityManager.clear();
+
+        List<EconomicTerm> result = economicTermRepository.findAllByStatusOrderByIdAsc(TermStatus.ACTIVE);
+
+        assertThat(result).extracting(EconomicTerm::getId).containsExactly(first.getId(), second.getId());
+        assertThat(result).allSatisfy(term -> assertThat(Hibernate.isInitialized(term.getAliases())).isTrue());
+        assertThat(result.get(0).getAliases()).extracting(EconomicTermAlias::getNormalizedAlias)
+                .containsExactly("국내총생산");
     }
 
     @Test

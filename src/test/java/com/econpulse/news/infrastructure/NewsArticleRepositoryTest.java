@@ -9,6 +9,7 @@ import com.econpulse.news.domain.NewsArticle;
 import com.econpulse.support.AbstractIntegrationTest;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,6 +111,18 @@ class NewsArticleRepositoryTest extends AbstractIntegrationTest {
 
         assertThat(page.getContent()).isEmpty();
         assertThat(page.getTotalElements()).isZero();
+    }
+
+    @Test
+    void findsExistingRequestedIdsInStableOrderAndOmitsMissingIds() {
+        NewsArticle first = newsArticleRepository.saveAndFlush(article("https://example.com/news/batch-1"));
+        NewsArticle second = newsArticleRepository.saveAndFlush(article("https://example.com/news/batch-2"));
+
+        List<NewsArticle> result = newsArticleRepository.findAllByIdInOrderByIdAsc(
+                List.of(second.getId(), Long.MAX_VALUE, first.getId())
+        );
+
+        assertThat(result).extracting(NewsArticle::getId).containsExactly(first.getId(), second.getId());
     }
 
     private NewsArticle article(String sourceUrl) {

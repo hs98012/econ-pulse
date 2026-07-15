@@ -7,8 +7,10 @@
 DB 조회, JPA 엔티티, Repository, Spring Bean, HTTP Provider에 의존하지 않고
 `TermNewsMappingService`를 호출하지 않는다.
 
-현재는 후보 계산까지만 구현했다. DB에서 용어·뉴스를 읽어 입력 모델로 변환하는 흐름,
-후보 저장 연결, 전체 재처리, Controller, 관련 뉴스 API와 스케줄러는 구현하지 않았다.
+순수 매처는 후보 계산만 담당한다. 별도의 `TermNewsAutoMappingService`가 최대 100개의
+명시적 저장 뉴스 ID와 ACTIVE 용어를 DB에서 읽고 입력 모델로 변환해 후보를 기존 멱등
+저장 서비스에 연결한다. 뉴스 수집 후 자동 호출, 전체 재처리, Controller, 관련 뉴스
+API와 스케줄러는 구현하지 않았다.
 
 ## 2. 입력과 출력
 
@@ -25,8 +27,8 @@ DB 조회, JPA 엔티티, Repository, Spring Bean, HTTP Provider에 의존하지
 
 용어, 별칭, 제목과 요약은 공통 `TextNormalizer`의 다음 정책을 사용한다.
 
-1. 앞뒤 공백 제거
-2. Unicode NFKC 정규화
+1. Unicode NFKC 정규화
+2. 앞뒤 공백 제거
 3. 연속 공백을 ASCII 공백 하나로 축약
 4. `Locale.ROOT` 기준 영문 소문자화
 
@@ -64,3 +66,28 @@ HTML 파서 역할을 하지 않는다. `TermNormalizer`와 `NewsTextNormalizer`
 순서에는 의존하지 않는다. 이름과 별칭이 모두 일치하면 항상 `EXACT_NAME`, 제목과
 요약이 모두 같은 유형으로 일치하면 제목을 선택한다. 아무 표현도 없으면 빈
 `Optional`을 반환한다.
+
+## 6. 저장 데이터 자동 매핑 경계
+
+- 명령은 null·빈 목록·0 이하 ID를 거부하고 중복 제거 후 뉴스 ID 오름차순으로 보관한다.
+- 한 호출은 최대 100개의 고유 뉴스 ID만 처리하며 모든 ID가 DB에 존재해야 한다.
+- ACTIVE 용어는 별칭을 EntityGraph로 함께 초기화해 N+1 조회를 피하고 ID 오름차순으로
+  처리한다. 뉴스도 한 번의 ID 목록 쿼리로 읽고 ID 오름차순으로 처리한다.
+- Application 계층은 저장된 normalized name과 normalized aliases를 사용해
+  `TermMatchTarget`을 만들고 뉴스 제목·요약만 `NewsMatchContent`에 전달한다.
+- 후보가 있을 때만 ID, match type, score로 `TermNewsMappingCommand`를 만들며 설명용
+  matched text와 field는 저장하지 않는다.
+- 결과의 요청 뉴스 수는 중복 제거된 고유 ID 수다. 처리 뉴스 수는 검증 후 실제 처리한
+  뉴스 수, 활성 용어 수는 한 호출에서 평가한 용어 수다. 평가 조합 수는 실제 매처 호출
+  수, 후보 수는 Optional이 존재한 수, 미일치 수는 Optional이 빈 수다.
+- `evaluatedPairCount = matchedCandidateCount + unmatchedPairCount`이며
+  `matchedCandidateCount = created + updated + skipped`다.
+
+AutoMappingService는 전체 호출을 큰 트랜잭션으로 감싸지 않는다. 각 후보 저장은 Spring
+proxy를 통해 기존 `TermNewsMappingService`의 트랜잭션을 재사용한다. 예상하지 못한 오류는
+즉시 전파하고 부분 성공 결과는 반환하지 않는다. 다만 오류 전에 커밋된 개별 저장을 전체
+호출 단위로 롤백하지는 않는다. `REQUIRES_NEW`와 parallel stream은 사용하지 않는다.
+
+계산량은 `뉴스 수 × ACTIVE 용어 수`다. 초기 규모에서는 전체 활성 용어 순회를 허용하지만
+뉴스 입력을 100건으로 제한한다. 데이터 증가 시 후보 용어 사전 필터 또는 검색 인덱스를
+검토하고, 전체 재처리는 반드시 페이징·청크 단위로 호출해야 한다.

@@ -8,9 +8,10 @@ Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionSe
 멱등 MySQL 저장 흐름과 `NewsQueryService`의 저장 뉴스 목록·상세 조회가
 구현됐으며 공개 저장 뉴스 목록·상세 API와 조건부 내부 동기화 API도 제공합니다.
 조건부 `NaverNewsProvider` Adapter, 명시적 `TermNewsMapping` Application 저장 기능과
-제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`까지
-구현됐습니다. DB 조회·저장과 자동 매칭을 연결하는 Application 흐름, 관련 뉴스 API,
-재처리 API, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`와 저장된
+뉴스 ID를 활성 용어 전체와 비교해 기존 멱등 저장 경계로 연결하는 제한된
+`TermNewsAutoMappingService`까지 구현됐습니다. 뉴스 수집 후 자동 호출, 관련 뉴스 API,
+전체 재처리 API, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
 
 ## 기술 스택
 
@@ -123,8 +124,31 @@ trim, 연속 공백 축약, 영문 소문자화를 적용합니다. 순수 ASCII
 ASCII 영숫자 토큰 경계를 확인하고, 한글 및 혼합 표현은 조사 결합을 위해 부분 문자열을
 허용합니다. 한 코드 포인트 별칭은 자동 후보에서 제외합니다.
 
-상세 정책은 `docs/07-term-news-matching-policy.md`에 있습니다. 이 단계는 후보 계산만
-제공하며 DB에서 용어·뉴스를 조회하거나 `TermNewsMappingService`를 호출하지 않습니다.
+상세 정책은 `docs/07-term-news-matching-policy.md`에 있습니다. 순수 매처 자체는 후보
+계산만 제공하며 DB 조회나 `TermNewsMappingService` 호출 책임을 갖지 않습니다.
+
+## Phase 3 저장 데이터 자동 매핑
+
+`TermNewsAutoMappingService`는 `TermNewsAutoMappingCommand`에 명시된 저장 뉴스 ID를
+한 번의 쿼리로 읽고, 별칭까지 함께 초기화한 ACTIVE 용어 전체를 조회합니다. 명령은
+중복을 제거한 양수 뉴스 ID를 오름차순 불변 목록으로 보관하며 최대 100개까지 허용합니다.
+요청 뉴스가 하나라도 없으면 저장 전에 `NEWS_NOT_FOUND`로 전체 호출을 실패시킵니다.
+
+Application 계층에서 엔티티를 `TermMatchTarget`과 `NewsMatchContent`로 변환한 뒤
+뉴스 ID, 용어 ID 오름차순으로 순수 매처를 실행합니다. 후보가 있을 때만
+`TermNewsMappingCommand`를 만들고 기존 `TermNewsMappingService`를 호출합니다.
+`matchedText`와 `matchedField`는 현재 DB에 저장하지 않습니다.
+
+결과는 요청·처리 뉴스 수, 활성 용어 수, 평가 조합 수, 후보 수,
+`CREATED`/`UPDATED`/`SKIPPED`, 미일치 조합 수를 제공합니다. 평가 조합 수는 후보와
+미일치의 합이고 후보 수는 세 저장 상태의 합입니다. AutoMappingService에는 큰
+트랜잭션을 두지 않으며 각 저장은 기존 MappingService의 트랜잭션을 사용합니다. 오류는
+즉시 전파하고 부분 성공 결과를 반환하지 않지만, 오류 전에 완료된 개별 트랜잭션을
+일괄 롤백하는 정책은 아닙니다.
+
+현재 계산량은 `요청 뉴스 수 × ACTIVE 용어 수`입니다. 초기 규모에서는 전체 활성 용어를
+순회하되 뉴스 입력을 100건으로 제한합니다. 데이터가 증가하면 후보 용어 사전 필터링이나
+검색 인덱스가 필요하며 전체 재처리는 반드시 페이지·청크 단위로 설계해야 합니다.
 
 ## Phase 3 내부 뉴스 동기화
 

@@ -2,14 +2,19 @@ package com.econpulse.term.infrastructure;
 
 import com.econpulse.term.domain.EconomicTerm;
 import com.econpulse.term.domain.TermStatus;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface EconomicTermRepository extends JpaRepository<EconomicTerm, Long> {
+
+    @EntityGraph(attributePaths = "aliases")
+    List<EconomicTerm> findAllByStatusOrderByIdAsc(TermStatus status);
 
     @Query(
             value = """

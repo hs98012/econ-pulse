@@ -90,6 +90,20 @@ class LayerDependencyTest {
             .resideInAPackage("..news.infrastructure.provider..");
 
     @ArchTest
+    static final ArchRule autoMappingDoesNotDependOnApiProvidersPopularOrSchedulers = noClasses()
+            .that()
+            .haveSimpleName("TermNewsAutoMappingService")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..api..",
+                    "..news.application.port..",
+                    "..news.infrastructure.provider..",
+                    "..popular..",
+                    "org.springframework.scheduling.."
+            );
+
+    @ArchTest
     static final ArchRule newsInfrastructureProvidersImplementNewsProviderPort = classes()
             .that()
             .resideInAPackage("..news.infrastructure.provider..")

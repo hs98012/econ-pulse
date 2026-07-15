@@ -11,7 +11,8 @@ Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionSe
 제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`와 저장된
 뉴스 ID를 활성 용어 전체와 비교해 기존 멱등 저장 경계로 연결하는 제한된
 `TermNewsAutoMappingService`까지 구현됐습니다. 뉴스 수집 후 자동 호출, 관련 뉴스 API,
-전체 재처리 API, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+전체 무제한 재처리, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+지정된 뉴스 ID의 재처리는 기본 비활성 내부 API로 명시적으로 실행할 수 있습니다.
 
 ## 기술 스택
 
@@ -149,6 +150,35 @@ Application 계층에서 엔티티를 `TermMatchTarget`과 `NewsMatchContent`로
 현재 계산량은 `요청 뉴스 수 × ACTIVE 용어 수`입니다. 초기 규모에서는 전체 활성 용어를
 순회하되 뉴스 입력을 100건으로 제한합니다. 데이터가 증가하면 후보 용어 사전 필터링이나
 검색 인덱스가 필요하며 전체 재처리는 반드시 페이지·청크 단위로 설계해야 합니다.
+
+### 내부 매핑 재처리 API
+
+`POST /internal/api/v1/mappings/rebuild`는 기본적으로 비활성화되며 뉴스 수집 API와
+독립적으로 동작합니다. local profile에서도 명시적으로 활성화해야 합니다.
+
+```bash
+SPRING_PROFILES_ACTIVE=local \
+ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED=true \
+./gradlew bootRun
+```
+
+먼저 용어 seed와 내부 뉴스 동기화 API로 저장 데이터와 뉴스 ID를 준비한 뒤 다음 요청을
+실행합니다.
+
+```bash
+curl -i \
+  -X POST "http://localhost:8080/internal/api/v1/mappings/rebuild" \
+  -H "Content-Type: application/json" \
+  -d '{"newsArticleIds":[1,2]}'
+```
+
+같은 요청을 다시 실행하면 첫 응답의 `created`가 두 번째에는 0이 되고 기존 후보는
+`skipped`로 집계되며 `term_news_mappings` 행 수는 유지됩니다. 요청 배열은 최대 100개고
+중복 ID는 허용하지만 Application Command에서 제거되므로 `requestedNewsCount`는 고유
+ID 수입니다. 일부 ID가 없으면 `404 NEWS_NOT_FOUND`로 실패하며 부분 성공 응답은 없습니다.
+
+이 토글은 기능 활성화 설정일 뿐 인증이 아닙니다. 운영에서는 별도 인증 또는 네트워크
+접근 제한이 필요합니다. ID 없는 전체 재처리, `all`, 기간 조건은 지원하지 않습니다.
 
 ## Phase 3 내부 뉴스 동기화
 

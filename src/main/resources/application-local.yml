@@ -5,3 +5,5 @@ econpulse:
   internal:
     news-sync:
       enabled: ${ECONPULSE_INTERNAL_NEWS_SYNC_ENABLED:true}
+    mapping-rebuild:
+      enabled: ${ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED:false}

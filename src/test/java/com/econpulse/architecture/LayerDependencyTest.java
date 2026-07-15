@@ -123,6 +123,18 @@ class LayerDependencyTest {
             .haveSimpleNameEndingWith("Repository");
 
     @ArchTest
+    static final ArchRule mappingRebuildControllerDependsOnNoMappingInternals = noClasses()
+            .that()
+            .haveSimpleName("MappingRebuildController")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..infrastructure..",
+                    "..domain..",
+                    "..news.application.port.."
+            );
+
+    @ArchTest
     static final ArchRule apiMayDependOnApplication = classes()
             .that()
             .resideInAPackage("..api..")

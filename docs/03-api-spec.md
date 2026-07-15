@@ -40,6 +40,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | `POST` | `/internal/api/v1/news/sync` | 조건부 활성화 뉴스 수집 작업 실행 |
+| `POST` | `/internal/api/v1/mappings/rebuild` | 조건부 활성화 지정 뉴스 자동 매핑 재처리 |
 
 ### 이후 Phase 예정 API
 
@@ -49,7 +50,6 @@
 |---|---|---|
 | `GET` | `/api/v1/terms/{termId}/news?page=&size=` | 용어 관련 최신 뉴스 조회 |
 | `GET` | `/api/v1/popular-terms?limit=10` | 실시간 인기 용어 조회 |
-| `POST` | `/internal/api/v1/mappings/rebuild` | 용어-뉴스 매핑 재처리 |
 
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
 
@@ -412,3 +412,68 @@ Provider 오류 정책:
 
 초기 버전은 요청이 끝날 때까지 기다리는 동기 `200 OK` 방식이다. 작업 시간이
 길어지면 별도 Job 리소스와 `202 Accepted` 방식으로 확장한다.
+
+## 5. 내부 매핑 재처리
+
+`POST /internal/api/v1/mappings/rebuild`
+
+기본 설정 `econpulse.internal.mapping-rebuild.enabled=false`에서는 Controller Bean이
+등록되지 않는다. local profile에서도 환경변수
+`ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED=true`로 명시적으로 활성화해야 한다.
+뉴스 동기화 토글과 독립적이며 뉴스 수집 완료 후 자동 호출하지 않는다. 이 설정은 인증을
+대신하지 않으므로 운영에서는 인증 또는 네트워크 접근 제한이 필요하다.
+
+요청:
+
+```json
+{
+  "newsArticleIds": [10, 11, 12]
+}
+```
+
+- 배열은 null 또는 빈 값일 수 없고 각 ID는 null이 아닌 양수여야 한다.
+- 원본 요청 배열은 최대 100개다. 101개 이상은 `400 INVALID_REQUEST`다.
+- 중복 ID는 허용하며 Application Command가 중복을 제거하고 ID 오름차순으로 처리한다.
+- `requestedNewsCount`는 중복 제거 후 실제 요청 대상이 된 고유 뉴스 수다.
+- 알 수 없는 필드, 문자열 ID, 타입 불일치와 잘못된 JSON은 `400 INVALID_REQUEST`다.
+- 모든 요청 뉴스가 존재해야 한다. 하나라도 없으면 매핑 전에 전체 요청을
+  `404 NEWS_NOT_FOUND`로 실패시키며 누락 ID 목록이나 내부 정보를 노출하지 않는다.
+- `{}`, `all`, 기간 조건과 ID 없는 전체 뉴스 재처리는 지원하지 않는다.
+
+응답: `200 OK`
+
+```json
+{
+  "requestedNewsCount": 3,
+  "processedNewsCount": 3,
+  "activeTermCount": 20,
+  "evaluatedPairCount": 60,
+  "matchedCandidateCount": 5,
+  "created": 3,
+  "updated": 1,
+  "skipped": 1,
+  "unmatchedPairCount": 55
+}
+```
+
+| 필드 | 의미 |
+|---|---|
+| `requestedNewsCount` | 중복 제거 후 요청된 뉴스 수 |
+| `processedNewsCount` | 존재 검증 후 실제 처리한 뉴스 수 |
+| `activeTermCount` | 각 뉴스와 비교한 ACTIVE 용어 수 |
+| `evaluatedPairCount` | 매처를 실행한 뉴스·용어 조합 수 |
+| `matchedCandidateCount` | 후보가 존재한 조합 수 |
+| `created` | 신규 매핑 저장 수 |
+| `updated` | 더 강한 근거로 갱신한 매핑 수 |
+| `skipped` | 기존 동일·강한 근거를 유지한 수 |
+| `unmatchedPairCount` | 후보가 없는 조합 수 |
+
+`evaluatedPairCount = matchedCandidateCount + unmatchedPairCount`이며
+`matchedCandidateCount = created + updated + skipped`다. 입력 및 Repository 순서와
+무관하게 뉴스 ID, 용어 ID 오름차순으로 실행한다. 같은 요청을 반복하면 기존 행을
+재사용해 `created=0`, `skipped` 증가가 예상되며 매핑 행 수는 증가하지 않는다.
+
+API는 동기 `200 OK` 방식이고 부분 성공 응답을 제공하지 않는다. 예상하지 못한 실행 오류는
+전체 호출을 실패시키지만 AutoMappingService의 개별 저장 트랜잭션 정책상 오류 전에
+커밋된 저장을 호출 전체 단위로 되돌리는 계약은 아니다. 비동기 Job, 전체 재처리,
+스케줄러는 아직 지원하지 않는다.

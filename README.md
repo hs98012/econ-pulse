@@ -7,9 +7,10 @@
 Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionService`의
 멱등 MySQL 저장 흐름과 `NewsQueryService`의 저장 뉴스 목록·상세 조회가
 구현됐으며 공개 저장 뉴스 목록·상세 API와 조건부 내부 동기화 API도 제공합니다.
-조건부 `NaverNewsProvider` Adapter와 명시적 `TermNewsMapping` Application 저장
-기능까지 구현됐습니다. 자동 매칭 알고리즘과 관련 뉴스 API, 재처리 API, 스케줄러,
-Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+조건부 `NaverNewsProvider` Adapter, 명시적 `TermNewsMapping` Application 저장 기능과
+제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`까지
+구현됐습니다. DB 조회·저장과 자동 매칭을 연결하는 Application 흐름, 관련 뉴스 API,
+재처리 API, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
 
 ## 기술 스택
 
@@ -107,6 +108,23 @@ match type과 confidence score를 하나의 트랜잭션에서 저장합니다. 
 동시 insert unique 충돌은 현재 명시적 `TERM_NEWS_MAPPING_CONFLICT`로 실패시킵니다.
 순차 재실행은 멱등적이지만 자동 재시도나 잠금은 아직 제공하지 않습니다. 이 단계에는
 자동 이름·별칭 탐지, Controller, 관련 뉴스 조회와 전체 재처리가 포함되지 않습니다.
+
+## Phase 3 순수 용어-뉴스 매칭
+
+`TermNewsMatcher`는 JPA 엔티티 대신 불변 입력인 `TermMatchTarget`과
+`NewsMatchContent`를 받아 한 용어와 한 뉴스의 최종 `TermMatchCandidate`를
+계산합니다. Spring Bean, Repository, HTTP Provider와 무관한 일반 Java 객체이며
+제목과 요약만 검사합니다.
+
+우선순위는 `제목 EXACT_NAME > 요약 EXACT_NAME > 제목 ALIAS > 요약 ALIAS`이며,
+동일 분류에서는 긴 정규화 표현, 그다음 사전순으로 결정합니다. 점수는 순서대로
+`1.0000`, `0.9000`, `0.8000`, `0.7000`입니다. 공통 정규화는 Unicode NFKC,
+trim, 연속 공백 축약, 영문 소문자화를 적용합니다. 순수 ASCII 영문·숫자 표현은
+ASCII 영숫자 토큰 경계를 확인하고, 한글 및 혼합 표현은 조사 결합을 위해 부분 문자열을
+허용합니다. 한 코드 포인트 별칭은 자동 후보에서 제외합니다.
+
+상세 정책은 `docs/07-term-news-matching-policy.md`에 있습니다. 이 단계는 후보 계산만
+제공하며 DB에서 용어·뉴스를 조회하거나 `TermNewsMappingService`를 호출하지 않습니다.
 
 ## Phase 3 내부 뉴스 동기화
 

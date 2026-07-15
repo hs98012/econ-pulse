@@ -1,7 +1,6 @@
 package com.econpulse.news.application.port;
 
-import java.text.Normalizer;
-import java.util.Locale;
+import com.econpulse.global.domain.TextNormalizer;
 
 public final class NewsTextNormalizer {
 
@@ -9,8 +8,6 @@ public final class NewsTextNormalizer {
     }
 
     public static String normalize(String value) {
-        return Normalizer.normalize(value.trim(), Normalizer.Form.NFKC)
-                .replaceAll("\\s+", " ")
-                .toLowerCase(Locale.ROOT);
+        return TextNormalizer.normalize(value);
     }
 }

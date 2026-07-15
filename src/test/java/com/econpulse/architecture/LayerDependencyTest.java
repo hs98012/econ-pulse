@@ -39,6 +39,21 @@ class LayerDependencyTest {
             .resideInAPackage("..infrastructure..");
 
     @ArchTest
+    static final ArchRule pureMappingMatcherDoesNotDependOnFrameworkOrApplicationLayers = noClasses()
+            .that()
+            .resideInAPackage("..mapping.domain..")
+            .and()
+            .haveNameMatching(".*\\.(TermNewsMatcher|TermMatch.*|NewsMatchContent|MatchedField)")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "org.springframework..",
+                    "jakarta.persistence..",
+                    "..application..",
+                    "..infrastructure.."
+            );
+
+    @ArchTest
     static final ArchRule applicationPortsDoNotDependOnSpringOrHttpClients = noClasses()
             .that()
             .resideInAPackage("..application.port..")

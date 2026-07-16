@@ -10,8 +10,9 @@ Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionSe
 조건부 `NaverNewsProvider` Adapter, 명시적 `TermNewsMapping` Application 저장 기능과
 제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`와 저장된
 뉴스 ID를 활성 용어 전체와 비교해 기존 멱등 저장 경계로 연결하는 제한된
-`TermNewsAutoMappingService`까지 구현됐습니다. 뉴스 수집 후 자동 호출, 관련 뉴스 API,
-전체 무제한 재처리, 스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+`TermNewsAutoMappingService`, 조건부 내부 rebuild와 용어별 관련 뉴스 공개 조회까지
+구현됐습니다. 뉴스 수집 후 자동 호출, 전체 무제한 재처리,
+스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
 지정된 뉴스 ID의 재처리는 기본 비활성 내부 API로 명시적으로 실행할 수 있습니다.
 
 ## 기술 스택
@@ -179,6 +180,21 @@ ID 수입니다. 일부 ID가 없으면 `404 NEWS_NOT_FOUND`로 실패하며 부
 
 이 토글은 기능 활성화 설정일 뿐 인증이 아닙니다. 운영에서는 별도 인증 또는 네트워크
 접근 제한이 필요합니다. ID 없는 전체 재처리, `all`, 기간 조건은 지원하지 않습니다.
+
+### 용어별 관련 뉴스 조회
+
+자동 매핑 후 실제 용어 ID로 관련 뉴스를 조회합니다.
+
+```bash
+curl -i \
+  "http://localhost:8080/api/v1/terms/1/news?page=0&size=20"
+```
+
+응답은 발행시각 내림차순, 같은 시각이면 뉴스 ID 내림차순이며 `matchType`과 JSON 숫자
+`confidenceScore`를 포함합니다. 매핑이 없으면 404가 아니라 빈 페이지를 반환합니다.
+local 검증 순서는 용어 seed 확인 → 내부 뉴스 동기화 → 저장 뉴스 ID 확인 → 내부 매핑
+rebuild → 관련 뉴스 조회입니다. 예시의 용어·뉴스 ID는 현재 로컬 DB의 실제 ID로 바꿔야
+합니다. 공개 용어 상세와 동일하게 미존재 또는 INACTIVE 용어는 `404 TERM_NOT_FOUND`입니다.
 
 ## Phase 3 내부 뉴스 동기화
 

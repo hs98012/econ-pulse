@@ -96,11 +96,27 @@ class LayerDependencyTest {
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage(
-                    "..api..",
+                    "..mapping.api..",
+                    "..news.api..",
+                    "..term.api..",
                     "..news.application.port..",
                     "..news.infrastructure.provider..",
                     "..popular..",
                     "org.springframework.scheduling.."
+            );
+
+    @ArchTest
+    static final ArchRule relatedNewsQueryDoesNotDependOnWritersMatchersOrProviders = noClasses()
+            .that()
+            .haveSimpleName("TermRelatedNewsQueryService")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..mapping.api..",
+                    "..news.api..",
+                    "..term.api..",
+                    "..news.application.port..",
+                    "..news.infrastructure.provider.."
             );
 
     @ArchTest

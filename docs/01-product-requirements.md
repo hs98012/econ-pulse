@@ -65,6 +65,6 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
 - 실제 운영 Naver 자격 증명 smoke, 뉴스별 연결 용어 조회, 무제한·날짜 범위 재처리,
   비동기 Job과 스케줄러는 운영 개선 backlog다.
 - Phase 4는 진행 중이다. Redis Sorted Set 기반 UTC 일간 용어 ID·검색 횟수 저장 경계와
-  독립 Application 기록·조회 기능을 구현했다.
+  독립 기록 기능, Redis 순위와 ACTIVE MySQL 용어 정보를 결합하는 Application 조회를 구현했다.
 - 공개 인기 검색어 API, 기존 검색 API 자동 기록 연결, MySQL Snapshot과 스케줄러는
   아직 구현하지 않았다.

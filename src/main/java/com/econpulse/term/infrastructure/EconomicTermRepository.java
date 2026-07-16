@@ -64,6 +64,8 @@ public interface EconomicTermRepository extends JpaRepository<EconomicTerm, Long
 
     Optional<EconomicTerm> findByIdAndStatus(Long id, TermStatus status);
 
+    List<EconomicTerm> findAllByIdInAndStatus(List<Long> ids, TermStatus status);
+
     boolean existsByName(String name);
 
     boolean existsByNormalizedName(String normalizedName);

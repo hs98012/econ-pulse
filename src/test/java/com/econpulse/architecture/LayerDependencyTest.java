@@ -90,6 +90,26 @@ class LayerDependencyTest {
             .beAssignableTo(PopularTermStore.class);
 
     @ArchTest
+    static final ArchRule popularTermQueryDoesNotDependOnApiRedisAdapterOrSnapshots = noClasses()
+            .that()
+            .haveSimpleName("PopularTermQueryService")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..api..",
+                    "..popular.infrastructure.redis..",
+                    "..popular.domain.."
+            );
+
+    @ArchTest
+    static final ArchRule popularApplicationDoesNotDependOnNewsOrMappingInfrastructure = noClasses()
+            .that()
+            .resideInAPackage("..popular.application..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("..news.infrastructure..", "..mapping.infrastructure..");
+
+    @ArchTest
     static final ArchRule otherFeaturesDoNotDependOnPopularRedisAdapter = noClasses()
             .that()
             .resideInAnyPackage("..term..", "..news..", "..mapping..")

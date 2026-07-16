@@ -53,7 +53,7 @@ E2E로 검증했으며 동일 입력 재실행 시 뉴스·매핑·응답 conten
 
 | Method | Path | 설명 |
 |---|---|---|
-| `GET` | `/api/v1/popular-terms?limit=10` | 실시간 인기 용어 조회 |
+| `GET` | `/api/v1/popular-terms?limit=10` | 예정: 실시간 인기 용어 조회, Controller 미구현 |
 
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
 

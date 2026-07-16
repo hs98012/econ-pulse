@@ -169,6 +169,29 @@ class EconomicTermRepositoryTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void findsActiveTermsByIdsWithoutLoadingAliases() {
+        EconomicTerm active = economicTermRepository.saveAndFlush(term(
+                "GDP",
+                "gdp",
+                List.of(alias("국내총생산", "국내총생산"))
+        ));
+        EconomicTerm otherActive = economicTermRepository.saveAndFlush(term("CPI", "cpi", List.of()));
+        EconomicTerm inactive = term("PPI", "ppi", List.of());
+        inactive.deactivate();
+        inactive = economicTermRepository.saveAndFlush(inactive);
+        entityManager.clear();
+
+        List<EconomicTerm> result = economicTermRepository.findAllByIdInAndStatus(
+                List.of(active.getId(), active.getId(), otherActive.getId(), inactive.getId(), 999_999L),
+                TermStatus.ACTIVE
+        );
+
+        assertThat(result).extracting(EconomicTerm::getId)
+                .containsExactlyInAnyOrder(active.getId(), otherActive.getId());
+        assertThat(result).allSatisfy(term -> assertThat(Hibernate.isInitialized(term.getAliases())).isFalse());
+    }
+
+    @Test
     void countsNewsMappings() {
         EconomicTerm term = economicTermRepository.saveAndFlush(term("GDP", "gdp", List.of()));
         NewsArticle article = newsArticleRepository.saveAndFlush(article());

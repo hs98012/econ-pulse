@@ -26,7 +26,10 @@ member, 누적 검색 횟수를 score로 저장합니다. 각 증가 후 TTL을 
 
 조회는 Redis에서 limit만큼만 가져온 뒤 그 범위 안에서 score 내림차순, 용어 ID
 오름차순으로 안정화합니다. limit 경계 밖의 동점까지 추가 조회하지 않는 초기 정책입니다.
-현재는 ID·score·1부터 시작하는 rank만 반환하며 공개 API, 경제용어명 조립, 기존 검색
+`PopularTermQueryService`는 이 순위 ID들을 MySQL ACTIVE 용어와 한 번에 결합해 rank,
+ID, 이름, 정의와 score의 불변 Application 결과를 만듭니다. Redis에만 있거나 INACTIVE인
+ID는 제외하고 최종 결과 기준 rank를 다시 부여합니다. 선택지 A에 따라 상위 limit 범위만
+검사하므로 제외 항목이 있으면 결과가 limit보다 적을 수 있습니다. 공개 API, 기존 검색
 API 자동 기록, MySQL Snapshot과 스케줄러는 아직 구현하지 않았습니다.
 
 ## 기술 스택

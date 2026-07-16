@@ -107,20 +107,23 @@ Phase 2 용어 삭제는 `economic_terms.status = INACTIVE`로 처리한다.
 
 ### 실시간 인기 검색어
 
-- 키: `econpulse:popular:terms:realtime`
+- 키: `econpulse:popular-terms:{UTC yyyy-MM-dd}`
 - 자료구조: Sorted Set
 - member: `EconomicTerm.id` 문자열
-- score: 유효한 검색 또는 상세 조회 횟수
+- score: 검색 누적 횟수인 비음수 안전 정수
 - 기록: `ZINCRBY`
 - 조회: `ZREVRANGE ... WITHSCORES`
+- TTL: 매 증가 후 7일로 갱신
 
-동점 정렬을 용어 ID 오름차순으로 보장하기 위해 애플리케이션에서 2차 정렬한다. 존재하지 않는 용어 ID는 결과에서 제외한다.
+Redis에서 요청 limit만 조회하고 그 범위 안에서 score 내림차순, 용어 ID 오름차순으로
+2차 정렬한다. limit 경계 밖의 동점 후보는 추가 조회하지 않는다. 존재하지 않는 용어 ID
+정리와 이름 조립은 후속 Application/API 작업에서 결정한다.
 
 ### 운영 정책
 
-- 스냅샷 작업은 설정된 주기마다 상위 N개를 읽어 `popular_term_snapshots`에 저장한다.
-- 스냅샷 성공 후에도 실시간 키는 유지하며, 초기 버전의 점수 초기화는 운영 설정으로 결정한다.
-- Redis 장애는 검색 API 실패로 전파하지 않고 경고 및 메트릭을 남긴다.
+- 실시간 Adapter는 Redis 장애를 `PopularTermStoreException(UNAVAILABLE)`으로 변환한다.
+- `popular_term_snapshots` 저장, 스케줄러와 만료 전 백업은 아직 구현하지 않았다.
+- 검색 API와 기록 기능도 아직 연결하지 않았으므로 장애 fallback은 연결 작업에서 결정한다.
 - 테스트 키는 `econpulse:test:*` 네임스페이스를 사용하고 테스트 후 삭제한다.
 - 여러 인스턴스의 동시 점수 증가는 Redis 원자 연산에 맡긴다.
 

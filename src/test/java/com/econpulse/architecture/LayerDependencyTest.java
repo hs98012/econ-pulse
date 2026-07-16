@@ -8,6 +8,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.econpulse.news.application.port.NewsProvider;
+import com.econpulse.popular.application.port.PopularTermStore;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -67,6 +68,34 @@ class LayerDependencyTest {
                     "okhttp3..",
                     "java.net.http.."
             );
+
+    @ArchTest
+    static final ArchRule popularApplicationDoesNotDependOnRedisOrSnapshotPersistence = noClasses()
+            .that()
+            .resideInAPackage("..popular.application..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "org.springframework.data.redis..",
+                    "io.lettuce..",
+                    "redis.clients..",
+                    "..popular.infrastructure.."
+            );
+
+    @ArchTest
+    static final ArchRule redisPopularTermStoreImplementsApplicationPort = classes()
+            .that()
+            .haveSimpleName("RedisPopularTermStore")
+            .should()
+            .beAssignableTo(PopularTermStore.class);
+
+    @ArchTest
+    static final ArchRule otherFeaturesDoNotDependOnPopularRedisAdapter = noClasses()
+            .that()
+            .resideInAnyPackage("..term..", "..news..", "..mapping..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..popular.infrastructure.redis..");
 
     @ArchTest
     static final ArchRule applicationAndDomainDoNotDependOnHttpClientTypes = noClasses()

@@ -13,9 +13,21 @@ Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionSe
 `TermNewsAutoMappingService`, 조건부 내부 rebuild와 용어별 관련 뉴스 공개 조회까지
 구현됐습니다. Fake Provider → 멱등 수집 → 자동 매핑 → 공개 관련 뉴스 조회 E2E와
 재실행 멱등성까지 MySQL Testcontainers로 검증했습니다. 뉴스 수집 후 자동 호출,
-전체 무제한 재처리와 스케줄러는 운영 개선 backlog이며 Redis 인기 검색어는 다음
-Phase 4 범위입니다.
+전체 무제한 재처리와 스케줄러는 운영 개선 backlog입니다. Phase 4는 Redis Sorted Set
+기반 UTC 일간 인기 용어 ID 집계 Port·Adapter와 독립 Application 기능부터 진행 중입니다.
 지정된 뉴스 ID의 재처리는 기본 비활성 내부 API로 명시적으로 실행할 수 있습니다.
+
+## Phase 4 Redis 일간 인기 용어
+
+`PopularTermService`는 유효한 용어 ID의 검색 기록을 주입된 UTC `Clock`의 날짜로
+집계하고, 명시적 날짜와 limit으로 순위를 조회합니다. 저장 Port는 Redis 타입을 노출하지
+않으며 Adapter는 `econpulse:popular-terms:yyyy-MM-dd` Sorted Set에 용어 ID 문자열을
+member, 누적 검색 횟수를 score로 저장합니다. 각 증가 후 TTL을 7일로 갱신합니다.
+
+조회는 Redis에서 limit만큼만 가져온 뒤 그 범위 안에서 score 내림차순, 용어 ID
+오름차순으로 안정화합니다. limit 경계 밖의 동점까지 추가 조회하지 않는 초기 정책입니다.
+현재는 ID·score·1부터 시작하는 rank만 반환하며 공개 API, 경제용어명 조립, 기존 검색
+API 자동 기록, MySQL Snapshot과 스케줄러는 아직 구현하지 않았습니다.
 
 ## 기술 스택
 

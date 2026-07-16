@@ -30,6 +30,10 @@ spring:
       fail-on-unknown-properties: true
 
 econpulse:
+  popular-terms:
+    key-prefix: ${ECONPULSE_POPULAR_TERMS_KEY_PREFIX:econpulse:popular-terms}
+    retention: ${ECONPULSE_POPULAR_TERMS_RETENTION:7d}
+    max-query-size: ${ECONPULSE_POPULAR_TERMS_MAX_QUERY_SIZE:100}
   news:
     provider:
       type: none

@@ -65,6 +65,7 @@ class TermRelatedNewsRepositoryTest extends AbstractIntegrationTest {
         NewsArticle sameTimeHigherId = articleRepository.saveAndFlush(article(3, "2026-07-13T00:00:00Z"));
         NewsArticle newest = articleRepository.saveAndFlush(article(4, "2026-07-14T00:00:00Z"));
         NewsArticle other = articleRepository.saveAndFlush(article(5, "2026-07-15T00:00:00Z"));
+        articleRepository.saveAndFlush(article(6, "2026-07-16T00:00:00Z"));
         mappingRepository.saveAllAndFlush(List.of(
                 mapping(term, oldest, MatchType.ALIAS, "0.7000"),
                 mapping(term, sameTimeLowerId, MatchType.ALIAS, "0.8000"),
@@ -78,6 +79,10 @@ class TermRelatedNewsRepositoryTest extends AbstractIntegrationTest {
                 .findRelatedNewsByEconomicTermId(term.getId(), PageRequest.of(0, 2));
         Page<TermNewsMapping> secondPage = mappingRepository
                 .findRelatedNewsByEconomicTermId(term.getId(), PageRequest.of(1, 2));
+        Page<TermNewsMapping> lastPage = mappingRepository
+                .findRelatedNewsByEconomicTermId(term.getId(), PageRequest.of(1, 3));
+        Page<TermNewsMapping> outOfRange = mappingRepository
+                .findRelatedNewsByEconomicTermId(term.getId(), PageRequest.of(2, 3));
 
         assertThat(firstPage.getContent()).extracting(mapping -> mapping.getNewsArticle().getId())
                 .containsExactly(newest.getId(), sameTimeHigherId.getId());
@@ -87,6 +92,15 @@ class TermRelatedNewsRepositoryTest extends AbstractIntegrationTest {
         assertThat(firstPage.getTotalPages()).isEqualTo(2);
         assertThat(firstPage.getContent().get(0).getMatchType()).isEqualTo(MatchType.EXACT_NAME);
         assertThat(firstPage.getContent().get(0).getConfidenceScore()).isEqualByComparingTo("1.0000");
+        assertThat(firstPage.getContent().get(0).getConfidenceScore().scale()).isEqualTo(4);
+        assertThat(firstPage.getContent().get(0).getMatchedAt())
+                .isEqualTo(LocalDateTime.parse("2026-07-15T03:00:00"));
+        assertThat(lastPage.getContent()).extracting(mapping -> mapping.getNewsArticle().getId())
+                .containsExactly(oldest.getId());
+        assertThat(lastPage.getTotalElements()).isEqualTo(4);
+        assertThat(lastPage.getTotalPages()).isEqualTo(2);
+        assertThat(outOfRange.getContent()).isEmpty();
+        assertThat(outOfRange.getTotalElements()).isEqualTo(4);
         PersistenceUnitUtil persistence = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
         assertThat(firstPage.getContent()).allSatisfy(mapping ->
                 assertThat(persistence.isLoaded(mapping, "newsArticle")).isTrue());

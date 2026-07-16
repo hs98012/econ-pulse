@@ -2,11 +2,13 @@ package com.econpulse.mapping.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.econpulse.global.api.PageResponse;
@@ -73,6 +75,7 @@ class TermRelatedNewsControllerTest {
                 .andExpect(jsonPath("$.content[0].publishedAt", matchesPattern(UTC_INSTANT_PATTERN)))
                 .andExpect(jsonPath("$.content[0].matchType").value("EXACT_NAME"))
                 .andExpect(jsonPath("$.content[0].confidenceScore").value(1.0))
+                .andExpect(content().string(containsString("\"confidenceScore\":1.0000")))
                 .andExpect(jsonPath("$.content[1].id").value(30))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(20))
@@ -80,7 +83,7 @@ class TermRelatedNewsControllerTest {
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.content[0].sourceUrlHash").doesNotExist())
                 .andExpect(jsonPath("$.content[0].mappingId").doesNotExist())
-                .andExpect(jsonPath("$.content[0].matchedAt").doesNotExist())
+                .andExpect(jsonPath("$.content[0].matchedAt", matchesPattern(UTC_INSTANT_PATTERN)))
                 .andExpect(jsonPath("$.content[0].economicTerm").doesNotExist());
 
         verify(queryService).find(query);
@@ -161,7 +164,8 @@ class TermRelatedNewsControllerTest {
                 "https://example.com/" + id,
                 Instant.parse("2026-07-15T02:00:00Z"),
                 type,
-                new BigDecimal(score)
+                new BigDecimal(score),
+                Instant.parse("2026-07-15T03:00:00Z")
         );
     }
 }

@@ -221,7 +221,9 @@ curl -i \
 ```
 
 응답은 발행시각 내림차순, 같은 시각이면 뉴스 ID 내림차순이며 `matchType`과 JSON 숫자
-`confidenceScore`를 포함합니다. 매핑이 없으면 404가 아니라 빈 페이지를 반환합니다.
+`confidenceScore`, UTC `matchedAt`을 포함합니다. 매핑이 없으면 404가 아니라 빈 페이지를
+반환합니다. Application Query는 ACTIVE 용어만 허용하고 미존재·INACTIVE 용어는 기존
+공개 용어 정책과 같이 `TERM_NOT_FOUND`로 처리합니다.
 local 검증 순서는 용어 seed 확인 → 내부 뉴스 동기화 → 저장 뉴스 ID 확인 → 내부 매핑
 rebuild → 관련 뉴스 조회입니다. 예시의 용어·뉴스 ID는 현재 로컬 DB의 실제 ID로 바꿔야
 합니다. 공개 용어 상세와 동일하게 미존재 또는 INACTIVE 용어는 `404 TERM_NOT_FOUND`입니다.

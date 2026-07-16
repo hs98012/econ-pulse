@@ -17,7 +17,9 @@ class TermRelatedNewsQueryTest {
 
     @Test
     void rejectsInvalidTermPageAndSize() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(null, 0, 20));
         assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(0L, 0, 20));
+        assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(-1L, 0, 20));
         assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(1L, -1, 20));
         assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(1L, 0, 0));
         assertThatIllegalArgumentException().isThrownBy(() -> new TermRelatedNewsQuery(1L, 0, 101));

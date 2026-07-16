@@ -120,6 +120,16 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule relatedNewsQueryDoesNotDependOnMappingOrIngestionServices = noClasses()
+            .that()
+            .haveSimpleName("TermRelatedNewsQueryService")
+            .should()
+            .dependOnClassesThat()
+            .haveNameMatching(
+                    ".*\\.(TermNewsMatcher|TermNewsMappingService|TermNewsAutoMappingService|NewsIngestionService)"
+            );
+
+    @ArchTest
     static final ArchRule newsInfrastructureProvidersImplementNewsProviderPort = classes()
             .that()
             .resideInAPackage("..news.infrastructure.provider..")

@@ -90,7 +90,7 @@ class TermRelatedNewsIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.totalPages").value(2))
                 .andExpect(jsonPath("$.content[0].sourceUrlHash").doesNotExist())
                 .andExpect(jsonPath("$.content[0].mappingId").doesNotExist())
-                .andExpect(jsonPath("$.content[0].matchedAt").doesNotExist());
+                .andExpect(jsonPath("$.content[0].matchedAt").value("2026-07-15T03:00:00Z"));
 
         mockMvc.perform(get("/api/v1/terms/{termId}/news", term.getId())
                         .param("page", "1").param("size", "2"))

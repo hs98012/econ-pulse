@@ -16,7 +16,8 @@ public record TermRelatedNewsResponse(
         String sourceUrl,
         Instant publishedAt,
         MatchType matchType,
-        BigDecimal confidenceScore
+        BigDecimal confidenceScore,
+        Instant matchedAt
 ) {
 
     public static TermRelatedNewsResponse from(TermNewsMapping mapping) {
@@ -29,7 +30,8 @@ public record TermRelatedNewsResponse(
                 article.getSourceUrl(),
                 toInstant(article.getPublishedAt()),
                 mapping.getMatchType(),
-                mapping.getConfidenceScore()
+                mapping.getConfidenceScore(),
+                toInstant(mapping.getMatchedAt())
         );
     }
 }

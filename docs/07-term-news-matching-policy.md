@@ -71,6 +71,24 @@ HTML 파서 역할을 하지 않는다. `TermNormalizer`와 `NewsTextNormalizer`
 
 ## 6. 저장 데이터 자동 매핑 경계
 
+### 단일 뉴스 원자적 매핑
+
+`mapNews(AutoMapNewsCommand)`는 양수 뉴스 ID 한 건만 받아 해당 뉴스와 현재 ACTIVE 용어
+전체를 비교한다. 뉴스가 없으면 용어 조회 전에 `NewsNotFoundException`으로 실패한다.
+ACTIVE 용어는 `@EntityGraph`로 별칭까지 한 번에 초기화하고 ID 오름차순으로 반환해
+별칭 접근 N+1을 방지한다. 각 엔티티는 정규화 이름·별칭의 불변 `TermMatchTarget`과
+제목·요약만 담은 `NewsMatchContent`로 변환한다.
+
+후보가 있을 때만 기존 `TermNewsMappingService`에 ID, match type, score를 전달한다.
+결과는 평가 용어 수, 후보 수, CREATED/UPDATED/SKIPPED와 미일치 수만 집계하며
+`evaluatedTerms = matchedCandidates + noMatch`,
+`matchedCandidates = created + updated + skipped`를 보장한다. 조회와 모든 후보 저장은
+하나의 REQUIRED 트랜잭션에 참여하므로 저장 도중 실패하면 앞선 저장도 롤백된다.
+
+뉴스 수집은 이 메서드를 자동 호출하지 않는다. 현재는 초기 데이터 규모를 전제로 한
+순차 전체 ACTIVE 용어 비교이며, 용어 수가 증가하면 후보 인덱싱이나 다중 패턴 검색을
+별도 검토한다. 전체 뉴스 재처리는 별도의 페이지·청크 batch 경계가 필요하다.
+
 - 명령은 null·빈 목록·0 이하 ID를 거부하고 중복 제거 후 뉴스 ID 오름차순으로 보관한다.
 - 한 호출은 최대 100개의 고유 뉴스 ID만 처리하며 모든 ID가 DB에 존재해야 한다.
 - ACTIVE 용어는 별칭을 EntityGraph로 함께 초기화해 N+1 조회를 피하고 ID 오름차순으로

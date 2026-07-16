@@ -14,6 +14,7 @@ import com.econpulse.term.infrastructure.EconomicTermRepository;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TermNewsAutoMappingService {
@@ -72,6 +73,41 @@ public class TermNewsAutoMappingService {
                 command.newsArticleIds().size(),
                 articles.size(),
                 targets.size(),
+                counts.evaluated,
+                counts.matched,
+                counts.created,
+                counts.updated,
+                counts.skipped,
+                counts.unmatched
+        );
+    }
+
+    @Transactional
+    public AutoMapNewsResult mapNews(AutoMapNewsCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("command must not be null");
+        }
+
+        NewsArticle article = articleRepository.findById(command.newsArticleId())
+                .orElseThrow(NewsNotFoundException::new);
+        NewsMatchContent content = toContent(article);
+        List<TermMatchTarget> targets = termRepository
+                .findAllByStatusOrderByIdAsc(TermStatus.ACTIVE)
+                .stream()
+                .map(TermNewsAutoMappingService::toTarget)
+                .toList();
+
+        MappingCounts counts = new MappingCounts();
+        for (TermMatchTarget target : targets) {
+            counts.evaluated++;
+            matcher.match(target, content).ifPresentOrElse(
+                    candidate -> save(candidate, counts),
+                    () -> counts.unmatched++
+            );
+        }
+
+        return new AutoMapNewsResult(
+                article.getId(),
                 counts.evaluated,
                 counts.matched,
                 counts.created,

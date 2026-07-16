@@ -111,15 +111,67 @@ class TermNewsAutoMappingIntegrationTest extends AbstractIntegrationTest {
         assertThat(mappingRepository.count()).isEqualTo(1);
     }
 
+    @Test
+    void mapsOneNewsAgainstActiveTermsAndKeepsRowsOnRepeatedExecution() {
+        EconomicTerm exact = termRepository.saveAndFlush(term("GDP", "gdp", List.of()));
+        EconomicTerm alias = termRepository.saveAndFlush(term(
+                "소비자물가지수",
+                "소비자물가지수",
+                List.of(new EconomicTermAlias("CPI", "cpi"))
+        ));
+        termRepository.saveAndFlush(term("환율", "환율", List.of()));
+        EconomicTerm inactive = term("실업률", "실업률", List.of());
+        inactive.deactivate();
+        termRepository.saveAndFlush(inactive);
+        NewsArticle article = articleRepository.saveAndFlush(article(4, "GDP와 CPI 상승"));
+
+        AutoMapNewsResult first = autoMappingService.mapNews(new AutoMapNewsCommand(article.getId()));
+        AutoMapNewsResult second = autoMappingService.mapNews(new AutoMapNewsCommand(article.getId()));
+
+        assertThat(first).isEqualTo(new AutoMapNewsResult(article.getId(), 3, 2, 2, 0, 0, 1));
+        assertThat(second).isEqualTo(new AutoMapNewsResult(article.getId(), 3, 2, 0, 0, 2, 1));
+        assertThat(mappingRepository.count()).isEqualTo(2);
+        assertThat(mappingRepository.findByEconomicTermIdAndNewsArticleId(exact.getId(), article.getId()))
+                .get().extracting(TermNewsMapping::getMatchType).isEqualTo(MatchType.EXACT_NAME);
+        assertThat(mappingRepository.findByEconomicTermIdAndNewsArticleId(alias.getId(), article.getId()))
+                .get().extracting(TermNewsMapping::getMatchType).isEqualTo(MatchType.ALIAS);
+        assertThat(mappingRepository.findByEconomicTermIdAndNewsArticleId(inactive.getId(), article.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    void mapsSummaryButDoesNotPersistAsciiSubstringFalsePositive() {
+        EconomicTerm gdp = termRepository.saveAndFlush(term("GDP", "gdp", List.of()));
+        EconomicTerm cpi = termRepository.saveAndFlush(term(
+                "소비자물가지수",
+                "소비자물가지수",
+                List.of(new EconomicTermAlias("CPI", "cpi"))
+        ));
+        NewsArticle article = articleRepository.saveAndFlush(article(5, "Scorpio 전망", "GDP는 상승"));
+
+        AutoMapNewsResult result = autoMappingService.mapNews(new AutoMapNewsCommand(article.getId()));
+
+        assertThat(result).isEqualTo(new AutoMapNewsResult(article.getId(), 2, 1, 1, 0, 0, 1));
+        assertThat(mappingRepository.findByEconomicTermIdAndNewsArticleId(gdp.getId(), article.getId()))
+                .get().extracting(TermNewsMapping::getConfidenceScore)
+                .isEqualTo(new java.math.BigDecimal("0.9000"));
+        assertThat(mappingRepository.findByEconomicTermIdAndNewsArticleId(cpi.getId(), article.getId()))
+                .isEmpty();
+    }
+
     private EconomicTerm term(String name, String normalizedName, List<EconomicTermAlias> aliases) {
         return new EconomicTerm(name, normalizedName, "definition", aliases);
     }
 
     private NewsArticle article(int sequence, String title) {
+        return article(sequence, title, null);
+    }
+
+    private NewsArticle article(int sequence, String title, String summary) {
         var newsUrl = new NewsUrlHasher().hash("https://example.com/auto-mapping/" + sequence);
         return NewsArticle.create(
                 title,
-                null,
+                summary,
                 "source",
                 newsUrl.normalizedUrl(),
                 newsUrl.hash(),

@@ -144,11 +144,15 @@ class EconomicTermRepositoryTest extends AbstractIntegrationTest {
     @Test
     void loadsOnlyActiveTermsWithAliasesInStableIdOrder() {
         EconomicTerm first = economicTermRepository.saveAndFlush(term(
-                "GDP", "gdp", List.of(alias("국내총생산", "국내총생산"))
+                "GDP", "gdp", List.of(
+                        alias("국내총생산", "국내총생산"),
+                        alias("국민총생산지표", "국민총생산지표")
+                )
         ));
         EconomicTerm second = economicTermRepository.saveAndFlush(term(
                 "CPI", "cpi", List.of(alias("소비자물가", "소비자물가"))
         ));
+        EconomicTerm withoutAlias = economicTermRepository.saveAndFlush(term("환율", "환율", List.of()));
         EconomicTerm inactive = term("PPI", "ppi", List.of(alias("생산자물가", "생산자물가")));
         inactive.deactivate();
         economicTermRepository.saveAndFlush(inactive);
@@ -156,10 +160,12 @@ class EconomicTermRepositoryTest extends AbstractIntegrationTest {
 
         List<EconomicTerm> result = economicTermRepository.findAllByStatusOrderByIdAsc(TermStatus.ACTIVE);
 
-        assertThat(result).extracting(EconomicTerm::getId).containsExactly(first.getId(), second.getId());
+        assertThat(result).extracting(EconomicTerm::getId)
+                .containsExactly(first.getId(), second.getId(), withoutAlias.getId());
         assertThat(result).allSatisfy(term -> assertThat(Hibernate.isInitialized(term.getAliases())).isTrue());
         assertThat(result.get(0).getAliases()).extracting(EconomicTermAlias::getNormalizedAlias)
-                .containsExactly("국내총생산");
+                .containsExactly("국내총생산", "국민총생산지표");
+        assertThat(result.get(2).getAliases()).isEmpty();
     }
 
     @Test

@@ -44,6 +44,8 @@ econpulse:
       enabled: false
     mapping-rebuild:
       enabled: ${ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED:false}
+    term-news-mapping:
+      enabled: ${ECONPULSE_INTERNAL_TERM_NEWS_MAPPING_ENABLED:false}
 
 server:
   port: ${SERVER_PORT:8080}

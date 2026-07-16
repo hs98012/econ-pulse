@@ -151,6 +151,19 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule singleNewsMappingControllerDependsOnNoMappingInternals = noClasses()
+            .that()
+            .haveSimpleName("AutoTermNewsMappingController")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..infrastructure..",
+                    "..domain..",
+                    "..news.application..",
+                    "..term.application.."
+            );
+
+    @ArchTest
     static final ArchRule apiMayDependOnApplication = classes()
             .that()
             .resideInAPackage("..api..")

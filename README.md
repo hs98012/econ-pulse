@@ -3,7 +3,7 @@
 경제용어 사전에 최신 뉴스를 자동 매핑하고 Redis 기반 실시간 인기 검색어를
 제공하는 Spring Boot 백엔드입니다.
 
-현재 구현 범위는 Phase 3 진행 중입니다. Phase 2 경제용어 사전 API는 완료됐고,
+Phase 2 경제용어 사전과 Phase 3 뉴스 수집·자동 매핑·관련 뉴스 조회를 완료했습니다.
 Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionService`의
 멱등 MySQL 저장 흐름과 `NewsQueryService`의 저장 뉴스 목록·상세 조회가
 구현됐으며 공개 저장 뉴스 목록·상세 API와 조건부 내부 동기화 API도 제공합니다.
@@ -11,8 +11,10 @@ Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionSe
 제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`와 저장된
 뉴스 ID를 활성 용어 전체와 비교해 기존 멱등 저장 경계로 연결하는 제한된
 `TermNewsAutoMappingService`, 조건부 내부 rebuild와 용어별 관련 뉴스 공개 조회까지
-구현됐습니다. 뉴스 수집 후 자동 호출, 전체 무제한 재처리,
-스케줄러, Redis 인기 검색어 기능은 아직 구현하지 않습니다.
+구현됐습니다. Fake Provider → 멱등 수집 → 자동 매핑 → 공개 관련 뉴스 조회 E2E와
+재실행 멱등성까지 MySQL Testcontainers로 검증했습니다. 뉴스 수집 후 자동 호출,
+전체 무제한 재처리와 스케줄러는 운영 개선 backlog이며 Redis 인기 검색어는 다음
+Phase 4 범위입니다.
 지정된 뉴스 ID의 재처리는 기본 비활성 내부 API로 명시적으로 실행할 수 있습니다.
 
 ## 기술 스택

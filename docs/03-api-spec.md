@@ -36,12 +36,16 @@
 | `GET` | `/api/v1/news/{newsId}` | 뉴스 상세 메타데이터 조회 |
 | `GET` | `/api/v1/terms/{termId}/news?page=&size=` | ACTIVE 용어의 관련 뉴스 최신순 조회 |
 
+Phase 3 핵심 흐름은 Fake Provider 수집부터 자동 매핑과 위 관련 뉴스 조회까지 실제 MySQL
+E2E로 검증했으며 동일 입력 재실행 시 뉴스·매핑·응답 content가 중복되지 않는다.
+
 ### Phase 3 구현 완료 내부 API
 
 | Method | Path | 설명 |
 |---|---|---|
 | `POST` | `/internal/api/v1/news/sync` | 조건부 활성화 뉴스 수집 작업 실행 |
 | `POST` | `/internal/api/v1/mappings/rebuild` | 조건부 활성화 지정 뉴스 자동 매핑 재처리 |
+| `POST` | `/internal/api/v1/news/{newsId}/term-mappings/auto` | 조건부 활성화 단일 뉴스 자동 매핑 |
 
 ### 이후 Phase 예정 API
 

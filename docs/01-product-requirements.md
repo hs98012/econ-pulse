@@ -16,7 +16,7 @@ EconPulse는 경제용어 사전을 기반으로 최신 경제 뉴스를 자동 
 
 - 경제용어 등록, 조회, 검색
 - 뉴스 메타데이터 수집 및 조회
-- 제목·요약·본문의 용어 기반 자동 매핑
+- 제목·요약의 용어 기반 자동 매핑
 - 검색 이벤트의 Redis 실시간 집계
 - 인기 검색어 조회 및 MySQL 스냅샷 보관
 
@@ -54,3 +54,14 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
 - 동일 뉴스 재수집 및 동일 매핑 재실행이 멱등적이다.
 - 검색 이벤트 직후 인기 검색어 순위에 반영된다.
 - Docker Compose 환경에서 MySQL과 Redis를 포함한 통합 테스트가 재현 가능하다.
+
+## 8. 구현 상태
+
+- Phase 2 경제용어 사전은 완료했다.
+- Phase 3 뉴스 Provider, 멱등 수집·조회, 순수 문자열 매칭, 멱등 매핑, 단일 뉴스 자동
+  매핑과 용어별 관련 뉴스 공개 조회를 완료했다.
+- Fake Provider → 뉴스 저장 → 자동 매핑 → 공개 관련 뉴스 조회의 핵심 흐름과 반복 실행
+  멱등성을 MySQL Testcontainers E2E로 검증했다.
+- 실제 운영 Naver 자격 증명 smoke, 뉴스별 연결 용어 조회, 무제한·날짜 범위 재처리,
+  비동기 Job과 스케줄러는 운영 개선 backlog다.
+- 다음 구현 Phase는 Redis 기반 인기 검색어다.

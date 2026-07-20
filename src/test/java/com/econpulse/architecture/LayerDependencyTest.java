@@ -212,6 +212,32 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule economicTermControllerDoesNotDependOnPopularPersistence = noClasses()
+            .that()
+            .haveSimpleName("EconomicTermController")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..popular.application.port..",
+                    "..popular.infrastructure..",
+                    "..popular.domain..",
+                    "org.springframework.data.redis.."
+            );
+
+    @ArchTest
+    static final ArchRule termDetailFacadeDoesNotDependOnApiRedisAdapterOrSnapshots = noClasses()
+            .that()
+            .haveSimpleName("EconomicTermDetailFacade")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..api..",
+                    "..popular.infrastructure..",
+                    "..popular.domain..",
+                    "org.springframework.data.redis.."
+            );
+
+    @ArchTest
     static final ArchRule mappingRebuildControllerDependsOnNoMappingInternals = noClasses()
             .that()
             .haveSimpleName("MappingRebuildController")

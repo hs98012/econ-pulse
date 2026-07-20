@@ -2,9 +2,9 @@
 
 ## 범위
 
-Phase 4 현재 범위는 Redis 실시간 일간 점수의 독립 저장 경계, Redis 인기 ID를 ACTIVE
-MySQL 용어 정보에 결합하는 Application 조회와 UTC 오늘의 공개 API다. 기존 경제용어
-검색·상세 흐름의 자동 기록, MySQL Snapshot, 과거 조회와 스케줄러는 포함하지 않는다.
+Phase 4 현재 범위는 Redis 실시간 일간 점수의 저장 경계, Redis 인기 ID를 ACTIVE MySQL
+용어 정보에 결합하는 Application 조회, UTC 오늘의 공개 API와 공개 상세 조회 성공 기록이다.
+MySQL Snapshot, 과거 조회와 스케줄러는 포함하지 않는다.
 
 ## 저장 계약
 
@@ -57,5 +57,22 @@ MySQL 전체 목록으로 대체하지 않는다.
 `GET /api/v1/terms/popular?limit=10`은 Query Service가 주입된 UTC `Clock`으로 오늘을
 계산한다. Controller는 날짜를 계산하거나 순서를 다시 정하지 않으며 Query Service에만
 의존한다. limit 기본값은 10, 범위는 1~100이고 결과는 page wrapper 없는 배열이다.
-미존재·INACTIVE 용어 제외 후 rank는 1부터 다시 계산한다. 검색·상세 API에서 점수를
-자동 기록하지 않으며 Snapshot 저장·fallback·과거 조회도 수행하지 않는다.
+미존재·INACTIVE 용어 제외 후 rank는 1부터 다시 계산한다. 인기 순위 조회 자체는 점수를
+기록하지 않으며 Snapshot 저장·fallback·과거 조회도 수행하지 않는다.
+
+## 상세 조회 성공 기록
+
+현재 score의 의미는 검색어 제출 횟수가 아니라 ACTIVE 경제용어 공개 상세 조회 성공
+횟수다. `GET /api/v1/terms/{termId}`에서 상세 Application 결과를 만든 다음 요청마다
+`RecordTermSearchCommand`를 한 번 실행한다. 이름은 기존 계약 안정성을 위해 유지한다.
+사용자·세션·IP 중복 제거는 없다.
+
+0 이하·문자열 ID, 미존재·INACTIVE 용어와 상세 결과 생성 실패는 기록하지 않는다.
+목록·검색 `GET /api/v1/terms`, 관련 뉴스, 인기 순위 자체, 뉴스 조회와 내부 API도
+기록하지 않는다.
+
+기록의 `UNAVAILABLE`은 비민감 용어 ID만 포함한 warning 후 fail-open한다. 상세 API는
+200과 기존 DTO를 반환한다. 저장소 손상과 예상하지 못한 RuntimeException은 숨기지 않으며
+재시도나 MySQL fallback은 없다. 인기 순위 조회의 Redis 장애는 기존 503을 유지한다.
+MySQL 읽기와 Redis 기록은 XA·Redis transaction으로 묶지 않으며 동시 증가는 기존
+`ZINCRBY` 원자성에 맡긴다.

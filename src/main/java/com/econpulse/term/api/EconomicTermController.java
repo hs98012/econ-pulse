@@ -1,14 +1,16 @@
 package com.econpulse.term.api;
 
-import com.econpulse.term.api.dto.TermCreateRequest;
 import com.econpulse.global.api.PageResponse;
+import com.econpulse.global.error.BusinessException;
+import com.econpulse.global.error.ErrorCode;
+import com.econpulse.term.api.dto.TermCreateRequest;
 import com.econpulse.term.api.dto.TermDetailResponse;
 import com.econpulse.term.api.dto.TermSummaryResponse;
 import com.econpulse.term.api.dto.TermUpdateRequest;
+import com.econpulse.term.application.EconomicTermDetailFacade;
 import com.econpulse.term.application.EconomicTermService;
-import com.econpulse.global.error.BusinessException;
-import com.econpulse.global.error.ErrorCode;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -28,9 +30,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class EconomicTermController {
 
     private final EconomicTermService economicTermService;
+    private final EconomicTermDetailFacade economicTermDetailFacade;
 
-    public EconomicTermController(EconomicTermService economicTermService) {
+    public EconomicTermController(
+            EconomicTermService economicTermService,
+            EconomicTermDetailFacade economicTermDetailFacade
+    ) {
         this.economicTermService = economicTermService;
+        this.economicTermDetailFacade = economicTermDetailFacade;
     }
 
     @PostMapping
@@ -52,8 +59,10 @@ public class EconomicTermController {
     }
 
     @GetMapping("/{termId}")
-    public ResponseEntity<TermDetailResponse> findById(@PathVariable Long termId) {
-        return ResponseEntity.ok(economicTermService.findById(termId));
+    public ResponseEntity<TermDetailResponse> findById(@PathVariable @Positive Long termId) {
+        return ResponseEntity.ok(TermDetailResponse.from(
+                economicTermDetailFacade.findByIdAndRecordView(termId)
+        ));
     }
 
     @PutMapping("/{termId}")

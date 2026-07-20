@@ -80,10 +80,10 @@ public class EconomicTermService {
     }
 
     @Transactional(readOnly = true)
-    public TermDetailResponse findById(Long termId) {
+    public EconomicTermDetailResult findById(Long termId) {
         EconomicTerm economicTerm = getActiveTerm(termId);
         long latestNewsCount = termNewsMappingRepository.countByEconomicTermId(termId);
-        return TermDetailResponse.from(economicTerm, latestNewsCount);
+        return EconomicTermDetailResult.from(economicTerm, latestNewsCount);
     }
 
     @Transactional

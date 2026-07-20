@@ -37,7 +37,7 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
 2. 용어 상세 조회는 정의와 연결된 최신 뉴스를 제공한다.
 3. 뉴스 수집은 외부 제공자와 분리된 어댑터를 통해 실행한다.
 4. 자동 매핑은 일치 근거와 신뢰도 점수를 저장하며 중복 매핑을 만들지 않는다.
-5. 유효한 용어 검색만 인기 점수에 반영한다.
+5. ACTIVE 경제용어의 공개 상세 조회 성공만 요청마다 인기 점수에 반영한다.
 6. 인기 검색어는 점수 내림차순으로 반환하고 동점은 용어 ID 오름차순으로 정렬한다.
 
 ## 6. 비기능 요구사항
@@ -68,5 +68,7 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
   독립 기록 기능, Redis 순위와 ACTIVE MySQL 용어 정보를 결합하는 Application 조회를 구현했다.
 - UTC 오늘의 인기 경제용어 공개 API를 구현했다. ACTIVE 용어만 반환하며 Redis에만 있는
   ID와 INACTIVE 용어를 제외한 뒤 rank를 재계산하고, Redis 장애는 503으로 반환한다.
-- 기존 검색·상세 API 자동 기록 연결, MySQL Snapshot, 과거 순위와 스케줄러는 아직
-  구현하지 않았다.
+- 공개 경제용어 상세 조회 성공 후 해당 용어의 UTC 오늘 점수를 요청마다 1 증가시킨다.
+  기록 Redis 장애는 상세 조회를 실패시키지 않는 fail-open이며 목록·검색·관련 뉴스·내부
+  API는 기록하지 않는다.
+- 사용자·세션별 중복 제거, MySQL Snapshot, 과거 순위와 스케줄러는 아직 구현하지 않았다.

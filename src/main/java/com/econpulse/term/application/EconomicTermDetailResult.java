@@ -1,12 +1,11 @@
-package com.econpulse.term.api.dto;
+package com.econpulse.term.application;
 
 import com.econpulse.global.time.UtcTimeConverter;
-import com.econpulse.term.application.EconomicTermDetailResult;
 import com.econpulse.term.domain.EconomicTerm;
 import java.time.Instant;
 import java.util.List;
 
-public record TermDetailResponse(
+public record EconomicTermDetailResult(
         Long id,
         String name,
         String definition,
@@ -16,8 +15,8 @@ public record TermDetailResponse(
         Instant updatedAt
 ) {
 
-    public static TermDetailResponse from(EconomicTerm economicTerm, long latestNewsCount) {
-        return new TermDetailResponse(
+    public static EconomicTermDetailResult from(EconomicTerm economicTerm, long latestNewsCount) {
+        return new EconomicTermDetailResult(
                 economicTerm.getId(),
                 economicTerm.getName(),
                 economicTerm.getDefinition(),
@@ -25,18 +24,6 @@ public record TermDetailResponse(
                 latestNewsCount,
                 UtcTimeConverter.toInstant(economicTerm.getCreatedAt()),
                 UtcTimeConverter.toInstant(economicTerm.getUpdatedAt())
-        );
-    }
-
-    public static TermDetailResponse from(EconomicTermDetailResult result) {
-        return new TermDetailResponse(
-                result.id(),
-                result.name(),
-                result.definition(),
-                result.aliases(),
-                result.latestNewsCount(),
-                result.createdAt(),
-                result.updatedAt()
         );
     }
 }

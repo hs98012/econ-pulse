@@ -354,6 +354,8 @@ Validation 실패: `400 INVALID_REQUEST`
 - 데이터가 없으면 `200 OK`와 빈 배열을 반환한다.
 - Redis 장애는 `503 POPULAR_TERM_STORE_UNAVAILABLE`이며 내부 연결 정보는 노출하지 않는다.
 - `PopularTermSnapshot` 저장·fallback·과거 조회를 사용하지 않는다.
+- score는 검색어 제출 횟수가 아니라 공개 경제용어 상세 조회 성공 횟수다. 같은 사용자의
+  반복 조회도 현재 단계에서는 요청마다 1회 집계한다.
 
 ```json
 [
@@ -376,6 +378,20 @@ Redis 장애 응답:
   "timestamp": "2026-07-20T08:00:00Z"
 }
 ```
+
+### 상세 조회 인기 기록
+
+`GET /api/v1/terms/{termId}`의 기존 응답과 오류 계약은 유지한다. 양수 ID의 ACTIVE 용어
+상세 결과 생성이 성공한 뒤 해당 `economicTermId`의 UTC 오늘 Redis score를 1 증가시킨다.
+미존재·INACTIVE 용어, 0 이하·문자열 ID와 상세 결과 생성 오류는 기록하지 않는다.
+
+Redis 기록이 unavailable이면 비민감 용어 ID만 포함한 warning을 남기고 상세 응답은
+`200 OK`로 유지한다. 재시도, MySQL 임시 기록과 Snapshot fallback은 없다. 반면
+`GET /api/v1/terms/popular`의 Redis 조회 실패는 계속 503이다.
+
+기록하지 않는 공개 경로는 목록·검색 `GET /api/v1/terms`, 관련 뉴스
+`GET /api/v1/terms/{termId}/news`, 인기 순위 `GET /api/v1/terms/popular`, 뉴스 조회다.
+`POST /internal/api/v1/...` 내부 동기화·매핑 API도 기록하지 않는다.
 
 ## 4. 내부 뉴스 동기화
 

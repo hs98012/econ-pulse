@@ -198,6 +198,20 @@ class LayerDependencyTest {
             .haveSimpleNameEndingWith("Repository");
 
     @ArchTest
+    static final ArchRule popularControllerDependsOnNoInfrastructureDomainOrOtherFeatures = noClasses()
+            .that()
+            .haveSimpleName("PopularTermController")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "..infrastructure..",
+                    "..domain..",
+                    "..news..",
+                    "..mapping..",
+                    "org.springframework.data.redis.."
+            );
+
+    @ArchTest
     static final ArchRule mappingRebuildControllerDependsOnNoMappingInternals = noClasses()
             .that()
             .haveSimpleName("MappingRebuildController")

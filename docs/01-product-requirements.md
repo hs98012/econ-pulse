@@ -66,5 +66,7 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
   비동기 Job과 스케줄러는 운영 개선 backlog다.
 - Phase 4는 진행 중이다. Redis Sorted Set 기반 UTC 일간 용어 ID·검색 횟수 저장 경계와
   독립 기록 기능, Redis 순위와 ACTIVE MySQL 용어 정보를 결합하는 Application 조회를 구현했다.
-- 공개 인기 검색어 API, 기존 검색 API 자동 기록 연결, MySQL Snapshot과 스케줄러는
-  아직 구현하지 않았다.
+- UTC 오늘의 인기 경제용어 공개 API를 구현했다. ACTIVE 용어만 반환하며 Redis에만 있는
+  ID와 INACTIVE 용어를 제외한 뒤 rank를 재계산하고, Redis 장애는 503으로 반환한다.
+- 기존 검색·상세 API 자동 기록 연결, MySQL Snapshot, 과거 순위와 스케줄러는 아직
+  구현하지 않았다.

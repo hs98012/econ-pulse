@@ -47,13 +47,11 @@ E2E로 검증했으며 동일 입력 재실행 시 뉴스·매핑·응답 conten
 | `POST` | `/internal/api/v1/mappings/rebuild` | 조건부 활성화 지정 뉴스 자동 매핑 재처리 |
 | `POST` | `/internal/api/v1/news/{newsId}/term-mappings/auto` | 조건부 활성화 단일 뉴스 자동 매핑 |
 
-### 이후 Phase 예정 API
-
-아래 API는 이후 Phase에서 구현한다.
+### Phase 4 구현 완료 API
 
 | Method | Path | 설명 |
 |---|---|---|
-| `GET` | `/api/v1/popular-terms?limit=10` | 예정: 실시간 인기 용어 조회, Controller 미구현 |
+| `GET` | `/api/v1/terms/popular?limit=10` | UTC 오늘의 일간 인기 경제용어 조회 |
 
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
 
@@ -341,18 +339,43 @@ Validation 실패: `400 INVALID_REQUEST`
 }
 ```
 
-### 인기 용어 항목
+### 오늘의 인기 경제용어
+
+`GET /api/v1/terms/popular?limit=10`
+
+- 주입된 UTC `Clock`의 오늘 날짜와 Redis 일간 key 날짜 기준을 동일하게 사용한다.
+- `limit` 기본값은 10이고 범위는 1~100이다. 범위 밖 값과 숫자가 아닌 값은
+  `400 INVALID_REQUEST`다.
+- score는 오늘 누적 검색 횟수이며 score 내림차순, 같은 score는 Redis Store가 정한
+  경제용어 ID 오름차순을 유지한다.
+- Redis 상위 limit 범위에서 ACTIVE이며 MySQL에 존재하는 용어만 반환한다. 누락·비활성
+  용어를 제외한 뒤 rank를 1부터 다시 부여하고 추가 Redis 후보를 조회하지 않으므로 결과가
+  limit보다 적을 수 있다.
+- 데이터가 없으면 `200 OK`와 빈 배열을 반환한다.
+- Redis 장애는 `503 POPULAR_TERM_STORE_UNAVAILABLE`이며 내부 연결 정보는 노출하지 않는다.
+- `PopularTermSnapshot` 저장·fallback·과거 조회를 사용하지 않는다.
+
+```json
+[
+  {
+    "rank": 1,
+    "economicTermId": 1,
+    "name": "기준금리",
+    "description": "중앙은행이 금융기관과 거래할 때 기준이 되는 금리",
+    "score": 42
+  }
+]
+```
+
+Redis 장애 응답:
 
 ```json
 {
-  "rank": 1,
-  "termId": 1,
-  "name": "기준금리",
-  "score": 42.0
+  "code": "POPULAR_TERM_STORE_UNAVAILABLE",
+  "message": "Popular term service is temporarily unavailable.",
+  "timestamp": "2026-07-20T08:00:00Z"
 }
 ```
-
-`limit`은 1~100이어야 하며 잘못된 값은 `400 INVALID_REQUEST`를 반환한다.
 
 ## 4. 내부 뉴스 동기화
 

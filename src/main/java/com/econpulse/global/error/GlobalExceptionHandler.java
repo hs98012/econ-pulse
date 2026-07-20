@@ -1,5 +1,6 @@
 package com.econpulse.global.error;
 
+import com.econpulse.popular.application.port.PopularTermStoreException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,21 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(PopularTermStoreException.class)
+    public ResponseEntity<ErrorResponse> handlePopularTermStoreException(
+            PopularTermStoreException exception
+    ) {
+        if (exception.getReason() == PopularTermStoreException.Reason.UNAVAILABLE) {
+            ErrorCode errorCode = ErrorCode.POPULAR_TERM_STORE_UNAVAILABLE;
+            return ResponseEntity
+                    .status(errorCode.getStatus())
+                    .body(ErrorResponse.of(errorCode));
+        }
+        return ResponseEntity
+                .internalServerError()
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR));
+    }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException exception) {

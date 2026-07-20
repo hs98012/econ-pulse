@@ -16,7 +16,10 @@ import com.econpulse.popular.application.port.PopularTermStoreException;
 import com.econpulse.term.domain.EconomicTerm;
 import com.econpulse.term.domain.TermStatus;
 import com.econpulse.term.infrastructure.EconomicTermRepository;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,7 +30,17 @@ class PopularTermQueryServiceTest {
 
     private final PopularTermStore store = mock(PopularTermStore.class);
     private final EconomicTermRepository repository = mock(EconomicTermRepository.class);
-    private final PopularTermQueryService service = new PopularTermQueryService(store, repository);
+    private final Clock clock = Clock.fixed(Instant.parse("2026-07-16T23:59:59Z"), ZoneOffset.UTC);
+    private final PopularTermQueryService service = new PopularTermQueryService(store, repository, clock);
+
+    @Test
+    void todayQueryUsesInjectedUtcClock() {
+        when(store.findTop(DATE, 10)).thenReturn(List.of());
+
+        assertThat(service.findTodayPopularTerms(10)).isEmpty();
+
+        verify(store).findTop(DATE, 10);
+    }
 
     @Test
     void rejectsInvalidQueriesBeforeDependenciesAreCalled() {

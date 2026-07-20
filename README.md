@@ -29,8 +29,15 @@ member, 누적 검색 횟수를 score로 저장합니다. 각 증가 후 TTL을 
 `PopularTermQueryService`는 이 순위 ID들을 MySQL ACTIVE 용어와 한 번에 결합해 rank,
 ID, 이름, 정의와 score의 불변 Application 결과를 만듭니다. Redis에만 있거나 INACTIVE인
 ID는 제외하고 최종 결과 기준 rank를 다시 부여합니다. 선택지 A에 따라 상위 limit 범위만
-검사하므로 제외 항목이 있으면 결과가 limit보다 적을 수 있습니다. 공개 API, 기존 검색
-API 자동 기록, MySQL Snapshot과 스케줄러는 아직 구현하지 않았습니다.
+검사하므로 제외 항목이 있으면 결과가 limit보다 적을 수 있습니다. 공개
+`GET /api/v1/terms/popular`는 주입된 UTC Clock 기준 오늘 순위를 배열로 반환하며 Redis
+장애는 `503 POPULAR_TERM_STORE_UNAVAILABLE`로 응답합니다. 기존 검색·상세 API 자동 기록,
+MySQL Snapshot, 과거 순위와 스케줄러는 아직 구현하지 않았습니다.
+
+```bash
+curl -i \
+  "http://localhost:8080/api/v1/terms/popular?limit=10"
+```
 
 ## 기술 스택
 

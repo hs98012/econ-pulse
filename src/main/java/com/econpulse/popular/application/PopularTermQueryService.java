@@ -4,6 +4,8 @@ import com.econpulse.popular.application.port.PopularTermStore;
 import com.econpulse.term.domain.EconomicTerm;
 import com.econpulse.term.domain.TermStatus;
 import com.econpulse.term.infrastructure.EconomicTermRepository;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -17,13 +19,20 @@ public class PopularTermQueryService {
 
     private final PopularTermStore popularTermStore;
     private final EconomicTermRepository economicTermRepository;
+    private final Clock clock;
 
     public PopularTermQueryService(
             PopularTermStore popularTermStore,
-            EconomicTermRepository economicTermRepository
+            EconomicTermRepository economicTermRepository,
+            Clock clock
     ) {
         this.popularTermStore = popularTermStore;
         this.economicTermRepository = economicTermRepository;
+        this.clock = clock;
+    }
+
+    public List<PopularTermResponse> findTodayPopularTerms(int limit) {
+        return findPopularTerms(new PopularTermQuery(LocalDate.now(clock), limit));
     }
 
     public List<PopularTermResponse> findPopularTerms(PopularTermQuery query) {

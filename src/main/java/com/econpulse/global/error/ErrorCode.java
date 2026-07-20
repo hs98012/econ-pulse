@@ -12,6 +12,10 @@ public enum ErrorCode {
     TERM_NEWS_MAPPING_CONFLICT(HttpStatus.CONFLICT, "Term-news mapping already exists."),
     NEWS_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "News provider is temporarily unavailable."),
     NEWS_PROVIDER_BAD_RESPONSE(HttpStatus.BAD_GATEWAY, "News provider returned an invalid response."),
+    POPULAR_TERM_STORE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "Popular term service is temporarily unavailable."
+    ),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error.");
 
     private final HttpStatus status;

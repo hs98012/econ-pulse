@@ -2,11 +2,13 @@ package com.econpulse.term.api;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,8 +47,10 @@ class EconomicTermDetailControllerTest {
     void successfulDetailUsesOrchestrationBoundaryAndKeepsResponseContract() throws Exception {
         when(detailFacade.findByIdAndRecordView(7L)).thenReturn(detail());
 
-        mockMvc.perform(get("/api/v1/terms/7"))
+        mockMvc.perform(get("/api/v1/terms/7")
+                        .header("X-Request-Id", "client-request-1234"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-Id", "client-request-1234"))
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.name").value("기준금리"))
                 .andExpect(jsonPath("$.definition").value("기준금리 정의"))
@@ -78,6 +82,9 @@ class EconomicTermDetailControllerTest {
 
         mockMvc.perform(get("/api/v1/terms/99"))
                 .andExpect(status().isNotFound())
+                .andExpect(header().string("X-Request-Id", matchesPattern(
+                        "[A-Za-z0-9._-]{8,128}"
+                )))
                 .andExpect(jsonPath("$.code").value("TERM_NOT_FOUND"));
     }
 
@@ -86,9 +93,23 @@ class EconomicTermDetailControllerTest {
     void invalidIdReturns400BeforeOrchestration(String termId) throws Exception {
         mockMvc.perform(get("/api/v1/terms/" + termId))
                 .andExpect(status().isBadRequest())
+                .andExpect(header().exists("X-Request-Id"))
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
         verifyNoInteractions(detailFacade);
+    }
+
+    @Test
+    void unexpectedFailureReturnsSanitized500WithRequestIdHeader() throws Exception {
+        when(detailFacade.findByIdAndRecordView(7L)).thenThrow(new RuntimeException("internal-secret"));
+
+        mockMvc.perform(get("/api/v1/terms/7")
+                        .header("X-Request-Id", "error-request-1234"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().string("X-Request-Id", "error-request-1234"))
+                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
+                .andExpect(jsonPath("$.requestId").doesNotExist())
+                .andExpect(content().string(not(containsString("internal-secret"))));
     }
 
     @Test

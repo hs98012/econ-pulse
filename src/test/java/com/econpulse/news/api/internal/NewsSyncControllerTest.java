@@ -23,10 +23,13 @@ import com.econpulse.news.infrastructure.provider.FakeNewsProvider;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
@@ -34,6 +37,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(value = NewsSyncController.class, properties = "econpulse.internal.news-sync.enabled=true")
 @Import(NewsProviderExceptionHandler.class)
+@ExtendWith(OutputCaptureExtension.class)
 class NewsSyncControllerTest {
 
     private static final String PATH = "/internal/api/v1/news/sync";
@@ -98,7 +102,10 @@ class NewsSyncControllerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"TIMEOUT", "RATE_LIMITED", "TEMPORARY_FAILURE"})
-    void retryableProviderFailuresReturn503WithoutProviderDetails(String errorType) throws Exception {
+    void retryableProviderFailuresReturn503WithoutProviderDetails(
+            String errorType,
+            CapturedOutput output
+    ) throws Exception {
         NewsProviderException exception = new NewsProviderException(
                 NewsProviderErrorType.valueOf(errorType),
                 "secret-key provider body java.net.SocketTimeoutException"
@@ -106,12 +113,22 @@ class NewsSyncControllerTest {
         when(newsIngestionService.ingest(new NewsIngestionCommand("기준금리", 0, 20, NewsSort.RECENCY)))
                 .thenThrow(exception);
 
-        mockMvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON).content(validRequest()))
+        mockMvc.perform(post(PATH)
+                        .header("X-Request-Id", "provider-failure-request-1234")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest()))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("NEWS_PROVIDER_UNAVAILABLE"))
                 .andExpect(jsonPath("$.message").value("News provider is temporarily unavailable."))
                 .andExpect(jsonPath("$.message", not(containsString("secret-key"))))
                 .andExpect(jsonPath("$.timestamp", matchesPattern(UTC_INSTANT_PATTERN)));
+
+        assertThat(output.getOut())
+                .contains("news_provider_request_failed")
+                .contains(errorType)
+                .contains("provider-failure-request-1234")
+                .doesNotContain("secret-key provider body")
+                .doesNotContain("SocketTimeoutException");
     }
 
     @ParameterizedTest

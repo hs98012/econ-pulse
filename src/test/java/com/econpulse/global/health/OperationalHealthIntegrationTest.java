@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,6 +27,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.core.env.Environment;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -47,6 +49,7 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
     private final EconomicTermController economicTermController;
     private final PopularTermController popularTermController;
     private final GlobalExceptionHandler globalExceptionHandler;
+    private final Environment environment;
 
     @Autowired
     OperationalHealthIntegrationTest(
@@ -56,7 +59,8 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
             HealthContributorRegistry healthContributorRegistry,
             EconomicTermController economicTermController,
             PopularTermController popularTermController,
-            GlobalExceptionHandler globalExceptionHandler
+            GlobalExceptionHandler globalExceptionHandler,
+            Environment environment
     ) {
         this.mockMvc = mockMvc;
         this.healthEndpoint = healthEndpoint;
@@ -65,6 +69,7 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
         this.economicTermController = economicTermController;
         this.popularTermController = popularTermController;
         this.globalExceptionHandler = globalExceptionHandler;
+        this.environment = environment;
     }
 
     @DynamicPropertySource
@@ -82,6 +87,8 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
         assertThat(healthContributorRegistry.getContributor("db")).isNotNull();
         assertThat(healthContributorRegistry.getContributor("redis")).isNotNull();
         assertThat(healthContributorRegistry.getContributor("naver")).isNull();
+        assertThat(environment.getProperty("logging.structured.format.console"))
+                .isEqualTo("logstash");
     }
 
     @Test
@@ -158,6 +165,7 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
     private void assertStatusOnly(String path, String expectedStatus) throws Exception {
         mockMvc.perform(get(path))
                 .andExpect(status().isOk())
+                .andExpect(header().exists("X-Request-Id"))
                 .andExpect(jsonPath("$.status").value(expectedStatus))
                 .andExpect(jsonPath("$.components").doesNotExist())
                 .andExpect(jsonPath("$.details").doesNotExist())

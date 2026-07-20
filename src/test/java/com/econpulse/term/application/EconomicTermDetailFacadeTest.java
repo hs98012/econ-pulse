@@ -17,6 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
+import org.slf4j.MDC;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
@@ -69,9 +70,16 @@ class EconomicTermDetailFacadeTest {
                 "RedisCommandTimeoutException redis://secret-host:6379"
         )).when(popularTermService).recordSearch(new RecordTermSearchCommand(7L));
 
-        assertThat(facade.findByIdAndRecordView(7L)).isSameAs(detail);
+        MDC.put("requestId", "redis-failure-request-1234");
+        try {
+            assertThat(facade.findByIdAndRecordView(7L)).isSameAs(detail);
+        } finally {
+            MDC.remove("requestId");
+        }
         assertThat(output.getOut())
-                .contains("Popular term view recording is unavailable; economicTermId=7")
+                .contains("popular_term_record_failed")
+                .contains("economicTermId")
+                .contains("redis-failure-request-1234")
                 .doesNotContain("RedisCommandTimeoutException")
                 .doesNotContain("secret-host");
     }

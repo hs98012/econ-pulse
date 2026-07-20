@@ -131,6 +131,26 @@ class LayerDependencyTest {
             );
 
     @ArchTest
+    static final ArchRule applicationAndDomainDoNotDependOnServletTypes = noClasses()
+            .that()
+            .resideInAnyPackage("..application..", "..domain..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage("jakarta.servlet..", "org.springframework.web.filter..");
+
+    @ArchTest
+    static final ArchRule controllersAndDomainDoNotManipulateMdc = noClasses()
+            .that()
+            .areAnnotatedWith(RestController.class)
+            .or()
+            .areAnnotatedWith(Controller.class)
+            .or()
+            .resideInAPackage("..domain..")
+            .should()
+            .dependOnClassesThat()
+            .haveFullyQualifiedName("org.slf4j.MDC");
+
+    @ArchTest
     static final ArchRule newsApplicationDoesNotDependOnProviderImplementations = noClasses()
             .that()
             .resideInAPackage("..news.application..")

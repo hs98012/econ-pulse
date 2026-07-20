@@ -31,7 +31,11 @@ public class EconomicTermDetailFacade {
             if (exception.getReason() != PopularTermStoreException.Reason.UNAVAILABLE) {
                 throw exception;
             }
-            LOGGER.warn("Popular term view recording is unavailable; economicTermId={}", detail.id());
+            LOGGER.atWarn()
+                    .addKeyValue("event", "popular_term_record_failed")
+                    .addKeyValue("economicTermId", detail.id())
+                    .addKeyValue("reason", "unavailable")
+                    .log("popular_term_record_failed");
         }
         return detail;
     }

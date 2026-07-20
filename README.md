@@ -75,7 +75,19 @@ Liveness는 애플리케이션 프로세스 상태만 사용하므로 MySQL·Red
 
 Kubernetes probe 권장 경로는 `/actuator/health/liveness`와
 `/actuator/health/readiness`입니다. Actuator 인증과 네트워크 ACL은 아직 없으므로 현재는
-노출 endpoint를 health·info로 제한합니다. 구조화 로깅과 운영 메트릭은 후속 작업입니다.
+노출 endpoint를 health·info로 제한합니다. 운영 메트릭은 후속 작업입니다.
+
+## Phase 5 요청 추적과 운영 로그
+
+모든 HTTP 요청은 `X-Request-Id`를 응답 헤더로 돌려줍니다. 8~128자의 영문자·숫자·점·
+하이픈·밑줄 값은 재사용하고, 없거나 잘못된 값은 UUID로 교체합니다. 오류 JSON 구조는
+변경하지 않으므로 운영 문의 시 응답 헤더의 요청 ID를 함께 전달해야 합니다.
+
+기본 실행은 Spring Boot 내장 Logstash JSON console format을 사용합니다. local profile은
+사람이 읽기 쉬운 console pattern과 `[requestId=...]` 상관관계를 사용합니다. 요청 완료
+로그는 `event=http_request_completed`, method, query 없는 path, status, durationMs를
+기록하며 body, query string, Authorization, Cookie와 외부 자격 증명은 기록하지 않습니다.
+비동기 MDC 전파, 분산 추적, 로그 수집 인프라와 커스텀 메트릭은 아직 구현하지 않았습니다.
 
 ## Phase 3 뉴스 제공자 Port
 

@@ -15,7 +15,9 @@ import com.econpulse.term.infrastructure.EconomicTermAliasRepository;
 import com.econpulse.term.infrastructure.EconomicTermRepository;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +25,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -36,9 +42,11 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
+@Import(PopularTermApiIntegrationTest.FixedClockConfig.class)
 class PopularTermApiIntegrationTest extends AbstractIntegrationTest {
 
     private static final String PATH = "/api/v1/terms/popular";
+    private static final Instant FIXED_NOW = Instant.parse("2026-07-20T08:00:00Z");
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
@@ -189,8 +197,13 @@ class PopularTermApiIntegrationTest extends AbstractIntegrationTest {
     @Test
     void missingAndInvalidDetailRequestsDoNotCreateScores() throws Exception {
         LocalDate today = LocalDate.now(clock);
+        EconomicTerm inactive = term("비활성 용어", "비활성 정의");
+        inactive.deactivate();
+        inactive = termRepository.saveAndFlush(inactive);
 
         mockMvc.perform(get("/api/v1/terms/999999"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/terms/{termId}", inactive.getId()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/terms/0"))
                 .andExpect(status().isBadRequest());
@@ -220,5 +233,15 @@ class PopularTermApiIntegrationTest extends AbstractIntegrationTest {
 
     private EconomicTerm term(String name, String definition) {
         return new EconomicTerm(name, name.toLowerCase(), definition, List.<EconomicTermAlias>of());
+    }
+
+    @TestConfiguration
+    static class FixedClockConfig {
+
+        @Bean
+        @Primary
+        Clock fixedClock() {
+            return Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
+        }
     }
 }

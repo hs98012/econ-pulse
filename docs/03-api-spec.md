@@ -53,6 +53,9 @@ E2E로 검증했으며 동일 입력 재실행 시 뉴스·매핑·응답 conten
 |---|---|---|
 | `GET` | `/api/v1/terms/popular?limit=10` | UTC 오늘의 일간 인기 경제용어 조회 |
 
+Phase 4는 상세 조회 성공 기록, Redis 일간 집계와 위 공개 조회 API까지 완료했다.
+Snapshot·과거 순위·스케줄러는 공개 API 계약 밖의 운영 개선 backlog다.
+
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
 
 ## 3. 주요 응답 계약
@@ -346,7 +349,7 @@ Validation 실패: `400 INVALID_REQUEST`
 - 주입된 UTC `Clock`의 오늘 날짜와 Redis 일간 key 날짜 기준을 동일하게 사용한다.
 - `limit` 기본값은 10이고 범위는 1~100이다. 범위 밖 값과 숫자가 아닌 값은
   `400 INVALID_REQUEST`다.
-- score는 오늘 누적 검색 횟수이며 score 내림차순, 같은 score는 Redis Store가 정한
+- score는 오늘 누적 상세 조회 성공 횟수이며 score 내림차순, 같은 score는 Redis Store가 정한
   경제용어 ID 오름차순을 유지한다.
 - Redis 상위 limit 범위에서 ACTIVE이며 MySQL에 존재하는 용어만 반환한다. 누락·비활성
   용어를 제외한 뒤 rank를 1부터 다시 부여하고 추가 Redis 후보를 조회하지 않으므로 결과가

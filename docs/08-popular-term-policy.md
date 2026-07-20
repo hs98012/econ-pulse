@@ -2,16 +2,17 @@
 
 ## 범위
 
-Phase 4 현재 범위는 Redis 실시간 일간 점수의 저장 경계, Redis 인기 ID를 ACTIVE MySQL
+Phase 4 완료 범위는 Redis 실시간 일간 점수의 저장 경계, Redis 인기 ID를 ACTIVE MySQL
 용어 정보에 결합하는 Application 조회, UTC 오늘의 공개 API와 공개 상세 조회 성공 기록이다.
-MySQL Snapshot, 과거 조회와 스케줄러는 포함하지 않는다.
+MySQL Snapshot, 과거 조회와 스케줄러는 운영 개선 backlog로 분리하며 Phase 4 완료를
+막지 않는다. 다음 구현 단계는 Phase 5 통합 품질과 운영 준비다.
 
 ## 저장 계약
 
 - 자료구조: Redis Sorted Set
 - key: `econpulse:popular-terms:{UTC yyyy-MM-dd}`
 - member: 양수 `economicTermId`의 10진 문자열
-- score: `ZINCRBY`로 증가하는 검색 횟수
+- score: `ZINCRBY`로 증가하는 상세 조회 성공 횟수
 - TTL: 각 증가 성공 후 7일로 갱신
 
 Application의 score는 `long`이다. Adapter는 Redis `Double`이 null, 비유한 값, 음수,

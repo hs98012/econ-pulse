@@ -58,6 +58,26 @@ Snapshot·과거 순위·스케줄러는 공개 API 계약 밖의 운영 개선 
 
 내부 API는 외부 공개 대상이 아니며 운영 환경에서 별도 인증 또는 네트워크 제한을 적용한다.
 
+### Phase 5 운영 상태 endpoint
+
+Actuator는 `/api/v1` 응답이나 공통 오류 형식으로 감싸지 않고 같은 애플리케이션 포트에서
+기본 관리 응답을 사용한다.
+
+| Method | Path | 설명 |
+|---|---|---|
+| `GET` | `/actuator/health` | 애플리케이션 전체 상태 |
+| `GET` | `/actuator/health/liveness` | 프로세스 생존 상태 |
+| `GET` | `/actuator/health/readiness` | MySQL·Redis 준비 상태 |
+| `GET` | `/actuator/info` | 비민감 정보, 현재 빈 객체 가능 |
+
+- 공개 health는 `show-details=never`로 component 상세와 접속·예외 정보를 노출하지 않는다.
+- liveness group은 `livenessState`만 포함하고 MySQL, Redis, Naver에 의존하지 않는다.
+- readiness group은 `readinessState`, `db`, `redis`를 포함한다. UP은 200, DOWN은 503이다.
+- Naver Provider는 readiness에 포함하지 않으며 health 요청이 외부 API를 호출하지 않는다.
+- web exposure는 `health,info`뿐이다. env, beans, configprops, heapdump, threaddump, loggers,
+  mappings, scheduledtasks, conditions, metrics와 prometheus는 노출하지 않는다.
+- 별도 management port, Spring Security 인증과 네트워크 ACL은 아직 구현하지 않았다.
+
 ## 3. 주요 응답 계약
 
 ### 용어 등록·수정 요청

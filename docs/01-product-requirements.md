@@ -73,3 +73,7 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
   API는 기록하지 않는다.
 - 사용자·세션별 중복 제거, MySQL Snapshot, 과거 순위와 스케줄러는 Phase 4 완료를 막지
   않는 운영 개선 backlog다. 다음 단계는 Phase 5 통합 품질과 운영 준비다.
+- Phase 5는 진행 중이다. Actuator health·info와 liveness·readiness probe를 같은
+  애플리케이션 포트에 추가했다. Readiness는 MySQL과 Redis를 필수 의존성으로 사용하고,
+  liveness와 readiness 모두 Naver API를 호출하지 않는다.
+- 구조화 로깅, 커스텀 비즈니스 메트릭, DB 인덱스 최적화와 CI는 후속 Phase 5 작업이다.

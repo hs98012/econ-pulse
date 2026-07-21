@@ -16,6 +16,9 @@ public interface EconomicTermRepository extends JpaRepository<EconomicTerm, Long
     @EntityGraph(attributePaths = "aliases")
     List<EconomicTerm> findAllByStatusOrderByIdAsc(TermStatus status);
 
+    @EntityGraph(attributePaths = "aliases")
+    List<EconomicTerm> findAllWithAliasesByIdIn(List<Long> ids);
+
     @Query(
             value = """
                     select distinct term

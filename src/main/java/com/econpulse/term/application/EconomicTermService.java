@@ -16,7 +16,10 @@ import java.text.Normalizer;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -67,16 +70,32 @@ public class EconomicTermService {
         String normalizedQuery = query == null || query.isBlank() ? null : TermNormalizer.normalize(query);
 
         if (normalizedQuery == null) {
-            return PageResponse.from(economicTermRepository.findAllByStatusWithAliases(TermStatus.ACTIVE, pageable)
+            return PageResponse.from(loadPageAliases(
+                            economicTermRepository.findAllByStatusWithAliases(TermStatus.ACTIVE, pageable)
+                    )
                     .map(TermSummaryResponse::from));
         }
 
-        return PageResponse.from(economicTermRepository.searchByNormalizedNameOrAlias(
-                        normalizedQuery,
-                        TermStatus.ACTIVE,
-                        pageable
+        return PageResponse.from(loadPageAliases(
+                        economicTermRepository.searchByNormalizedNameOrAlias(
+                                normalizedQuery,
+                                TermStatus.ACTIVE,
+                                pageable
+                        )
                 )
                 .map(TermSummaryResponse::from));
+    }
+
+    private Page<EconomicTerm> loadPageAliases(Page<EconomicTerm> page) {
+        if (page.isEmpty()) {
+            return page;
+        }
+        List<Long> ids = page.getContent().stream().map(EconomicTerm::getId).toList();
+        Map<Long, EconomicTerm> termsById = economicTermRepository.findAllWithAliasesByIdIn(ids)
+                .stream()
+                .collect(Collectors.toMap(EconomicTerm::getId, term -> term));
+        List<EconomicTerm> orderedTerms = ids.stream().map(termsById::get).toList();
+        return new PageImpl<>(orderedTerms, page.getPageable(), page.getTotalElements());
     }
 
     @Transactional(readOnly = true)

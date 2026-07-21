@@ -26,10 +26,6 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "term_news_mappings",
         indexes = {
-                @Index(
-                        name = "idx_term_news_mappings_term_article",
-                        columnList = "economic_term_id, news_article_id"
-                ),
                 @Index(name = "idx_term_news_mappings_article", columnList = "news_article_id")
         },
         uniqueConstraints = {

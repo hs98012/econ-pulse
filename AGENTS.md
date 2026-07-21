@@ -11,6 +11,12 @@ calls, single-news automatic mapping, and popular-term Redis record/query bounda
 internal to `MeterRegistry`; Actuator web exposure remains `health,info`, without metrics or
 Prometheus endpoints.
 
+MySQL 8 query plans are documented against representative data. Flyway V2 removes only two general
+indexes that exactly duplicated UNIQUE indexes; business uniqueness remains the concurrency backstop.
+Term list/search pages hydrate aliases in one page-scoped EntityGraph query to avoid N+1 without
+collection-fetch pagination. Contains search still uses leading wildcards and is not made indexable by
+adding speculative B-trees. The local analysis script must never be run against an operational database.
+
 For a single stored news article, `TermNewsAutoMappingService.mapNews` provides an atomic application boundary: it loads that article and all ACTIVE terms with aliases, evaluates them sequentially with the pure matcher, and joins all mapping saves in one transaction. The conditional `POST /internal/api/v1/news/{newsId}/term-mappings/auto` endpoint exposes only this single-news operation and is disabled by default. It is not invoked automatically by news ingestion.
 
 ## Source of Truth

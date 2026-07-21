@@ -1,600 +1,114 @@
 # EconPulse
 
-경제용어 사전에 최신 뉴스를 자동 매핑하고 Redis 기반 실시간 인기 검색어를
-제공하는 Spring Boot 백엔드입니다.
+경제용어 사전에 최신 뉴스를 연결하고 Redis 기반 일간 인기 경제용어를 제공하는
+Spring Boot 백엔드입니다. EconPulse backend MVP와 Phase 5 핵심 운영 준비 범위는
+완료됐습니다. 자동 테스트·CI와 로컬 클린 환경 재현까지 검증했으며, 실제 운영 배포와
+외부 운영 인프라는 backlog입니다.
 
-Phase 2 경제용어 사전과 Phase 3 뉴스 수집·자동 매핑·관련 뉴스 조회를 완료했습니다.
-Phase 3에서 뉴스 제공자 Port, 테스트용 Fake Adapter, `NewsIngestionService`의
-멱등 MySQL 저장 흐름과 `NewsQueryService`의 저장 뉴스 목록·상세 조회가
-구현됐으며 공개 저장 뉴스 목록·상세 API와 조건부 내부 동기화 API도 제공합니다.
-조건부 `NaverNewsProvider` Adapter, 명시적 `TermNewsMapping` Application 저장 기능과
-제목·요약에서 한 용어의 이름·별칭 후보를 계산하는 순수 `TermNewsMatcher`와 저장된
-뉴스 ID를 활성 용어 전체와 비교해 기존 멱등 저장 경계로 연결하는 제한된
-`TermNewsAutoMappingService`, 조건부 내부 rebuild와 용어별 관련 뉴스 공개 조회까지
-구현됐습니다. Fake Provider → 멱등 수집 → 자동 매핑 → 공개 관련 뉴스 조회 E2E와
-재실행 멱등성까지 MySQL Testcontainers로 검증했습니다. 뉴스 수집 후 자동 호출,
-전체 무제한 재처리와 스케줄러는 운영 개선 backlog입니다. Phase 4 Redis Sorted Set
-기반 UTC 일간 인기 용어 집계와 공개 조회·상세 조회 기록 연결은 완료했습니다.
-지정된 뉴스 ID의 재처리는 기본 비활성 내부 API로 명시적으로 실행할 수 있습니다.
+현재 버전은 `1.0.0`입니다. 이 표시는 MVP 범위 완료를 뜻하며 무중단 운영이나
+production-ready 배포 환경을 보장한다는 의미는 아닙니다.
 
-## Phase 4 Redis 일간 인기 용어
+## 주요 기능
 
-`PopularTermService`는 유효한 용어 ID의 상세 조회 성공 기록을 주입된 UTC `Clock`의 날짜로
-집계하고, 명시적 날짜와 limit으로 순위를 조회합니다. 저장 Port는 Redis 타입을 노출하지
-않으며 Adapter는 `econpulse:popular-terms:yyyy-MM-dd` Sorted Set에 용어 ID 문자열을
-member, 누적 상세 조회 성공 횟수를 score로 저장합니다. 각 증가 후 TTL을 7일로 갱신합니다.
-
-조회는 Redis에서 limit만큼만 가져온 뒤 그 범위 안에서 score 내림차순, 용어 ID
-오름차순으로 안정화합니다. limit 경계 밖의 동점까지 추가 조회하지 않는 초기 정책입니다.
-`PopularTermQueryService`는 이 순위 ID들을 MySQL ACTIVE 용어와 한 번에 결합해 rank,
-ID, 이름, 정의와 score의 불변 Application 결과를 만듭니다. Redis에만 있거나 INACTIVE인
-ID는 제외하고 최종 결과 기준 rank를 다시 부여합니다. 선택지 A에 따라 상위 limit 범위만
-검사하므로 제외 항목이 있으면 결과가 limit보다 적을 수 있습니다. 공개
-`GET /api/v1/terms/popular`는 주입된 UTC Clock 기준 오늘 순위를 배열로 반환하며 Redis
-장애는 `503 POPULAR_TERM_STORE_UNAVAILABLE`로 응답합니다. 공개 경제용어 상세 조회가
-성공하면 요청마다 해당 ID의 오늘 score를 1 증가시킵니다. Redis 기록 장애는 안전한
-warning을 남기고 상세 응답은 200으로 유지하는 fail-open 정책입니다. 목록·검색·관련 뉴스와
-내부 API는 기록하지 않습니다. 사용자별 중복 제거, MySQL Snapshot, 과거 순위와
-스케줄러는 Phase 4 완료를 막지 않는 운영 개선 backlog입니다. Phase 5 통합 품질과 운영
-준비는 Actuator health·probe 구성부터 진행 중입니다.
-
-```bash
-curl "http://localhost:8080/api/v1/terms/1"
-curl "http://localhost:8080/api/v1/terms/1"
-curl "http://localhost:8080/api/v1/terms/popular?limit=10"
-```
+- 경제용어 CRUD, ACTIVE 목록·이름/별칭 검색과 상세 조회
+- Provider-neutral 뉴스 수집, URL hash 기반 멱등 저장과 뉴스 목록·상세 조회
+- Fake/Naver Provider Adapter, 순수 용어 매처와 멱등 자동 매핑
+- 용어별 관련 뉴스 최신순 공개 조회
+- Redis UTC 일간 인기 점수, 상세 조회 기록과 인기 순위 공개 API
+- Redis 기록 장애 fail-open과 인기 조회 장애 503 분리
+- Actuator health·liveness·readiness, `X-Request-Id`, 구조화 로그
+- Micrometer 핵심 메트릭, MySQL 실행계획 점검, GitHub Actions CI
 
 ## 기술 스택
 
-- Java 17
-- Spring Boot 3.5.15
-- Gradle Wrapper
-- Spring Web, Spring Data JPA, Validation, Actuator
-- Flyway
-- MySQL 8.0, Redis 7
-- Lombok
-- Docker Compose
-- Testcontainers, ArchUnit, JaCoCo, Checkstyle
+- Java 17, Spring Boot 3.5.15, Gradle Wrapper 8.14.5
+- Spring Web, Data JPA, Data Redis, Validation, Actuator, Micrometer Core
+- MySQL 8.0, Redis 7, Flyway, Docker Compose
+- JUnit 5, Testcontainers, MockWebServer, ArchUnit, Checkstyle, JaCoCo
 
-## Phase 5 운영 상태 확인
+## 아키텍처
 
-Spring Boot Actuator는 애플리케이션과 같은 포트에서 `health`와 `info`만 노출합니다.
-공개 health 응답은 component 상세, 접속 정보와 예외 메시지를 숨깁니다.
+기능 단위 `term`, `news`, `mapping`, `popular`, `global` 패키지 안에서 API → Application
+→ Domain/Infrastructure 방향을 유지합니다. 외부 뉴스와 Redis는 Application Port 뒤의
+Adapter로 연결하며, Application·Domain은 RedisTemplate과 Micrometer 타입에 직접
+의존하지 않습니다. API는 JPA Entity를 반환하지 않습니다.
 
-```bash
-curl -i "http://localhost:8080/actuator/health"
-curl -i "http://localhost:8080/actuator/health/liveness"
-curl -i "http://localhost:8080/actuator/health/readiness"
-curl -i "http://localhost:8080/actuator/info"
-```
+## 빠른 시작
 
-Liveness는 애플리케이션 프로세스 상태만 사용하므로 MySQL·Redis·Naver 장애에 영향받지
-않습니다. Readiness는 공개 API의 필수 저장소인 MySQL과 Redis를 포함합니다. Naver는
-경제용어 등 핵심 공개 API의 필수 의존성이 아니며 health check가 외부 요청을 만들지
-않도록 readiness에서 제외합니다.
-
-Kubernetes probe 권장 경로는 `/actuator/health/liveness`와
-`/actuator/health/readiness`입니다. Actuator 인증과 네트워크 ACL은 아직 없으므로 현재는
-노출 endpoint를 health·info로 제한합니다.
-
-Micrometer Core 기반 Counter와 Timer는 내부 `MeterRegistry`에 뉴스 수집, Naver 호출,
-단일 뉴스 자동 매핑, Redis 인기 기록·조회 결과와 시간을 기록합니다. ID, 검색어, URL,
-requestId 같은 high-cardinality 값은 tag로 사용하지 않습니다. 현재
-`/actuator/metrics`와 `/actuator/prometheus`는 노출하지 않으며 Prometheus Registry도
-추가하지 않았습니다. 세부 목록은 `docs/11-operational-metrics.md`를 참조합니다.
-
-## Phase 5 요청 추적과 운영 로그
-
-모든 HTTP 요청은 `X-Request-Id`를 응답 헤더로 돌려줍니다. 8~128자의 영문자·숫자·점·
-하이픈·밑줄 값은 재사용하고, 없거나 잘못된 값은 UUID로 교체합니다. 오류 JSON 구조는
-변경하지 않으므로 운영 문의 시 응답 헤더의 요청 ID를 함께 전달해야 합니다.
-
-기본 실행은 Spring Boot 내장 Logstash JSON console format을 사용합니다. local profile은
-사람이 읽기 쉬운 console pattern과 `[requestId=...]` 상관관계를 사용합니다. 요청 완료
-로그는 `event=http_request_completed`, method, query 없는 path, status, durationMs를
-기록하며 body, query string, Authorization, Cookie와 외부 자격 증명은 기록하지 않습니다.
-비동기 MDC 전파, 분산 추적과 로그 수집 인프라는 아직 구현하지 않았습니다. requestId는
-로그 상관관계에만 사용하며 메트릭 tag에는 포함하지 않습니다.
-
-## Phase 3 뉴스 제공자 Port
-
-뉴스 제공자 연동은 `com.econpulse.news.application.port.NewsProvider` Port 뒤에
-숨깁니다. Port 모델은 `NewsSearchQuery`, `NewsSort`, `NewsProviderArticle`,
-`NewsSearchResult`이며 Spring, HTTP 클라이언트, 특정 외부 제공자 DTO에 의존하지
-않습니다.
-
-테스트와 로컬 개발에는 `com.econpulse.news.infrastructure.provider.FakeNewsProvider`
-를 직접 생성해서 사용합니다. `local` profile에서만 fixture를 가진 Fake Adapter가
-Spring Bean으로 등록되며 운영 기본 profile에서는 실제 Provider처럼 자동 사용되지
-않습니다. 테스트마다 새 인스턴스에 데이터를 주입해 상태 오염을 피합니다.
-
-Fake Adapter는 제목 또는 요약에 검색어가 포함된 뉴스를 반환하고, 검색 비교 전에
-trim, Unicode NFKC, 연속 공백 정리, 소문자 변환을 적용합니다. 정렬은 최신순과
-관련도순을 지원하며 page/size 페이징을 적용합니다. 외부 제공자 응답에 있을 수
-있는 `<b>`, `&quot;`, `&amp;` 같은 표현은 Adapter 경계에서 일반 문자열로 정리해
-Port 바깥 계층이 제공자별 HTML 형식을 알지 않게 합니다.
-
-`NaverNewsProvider`의 요청/응답 DTO와 `RestClient`는 infrastructure의 Naver 패키지에
-가두고 애플리케이션 계층에는 Port 모델만 반환합니다. 내부 page/size는 Naver의
-`start=page*size+1`, `display=size`로 변환하며 start 1000 초과 요청은 전송 전에
-거부합니다. `RECENCY`는 `date`, `RELEVANCE`는 `sim`으로 변환합니다.
-
-HTTP 경계는
-`docs/06-news-provider-adapter-contract.md`에 고정했습니다. 재사용 가능한 추상 계약
-테스트와 test-only `RestClient` reference Adapter가 OkHttp `MockWebServer`의 localhost
-응답을 사용해 요청·응답 매핑, HTML 정제, 401/403/429/5xx, timeout, 연결 실패,
-malformed JSON과 비밀값 비노출을 검증합니다. 같은 계약을 Naver Adapter에도 적용하며
-자동 테스트는 실제 인터넷을 사용하지 않습니다.
-
-Naver Adapter는 기본적으로 선택되지 않습니다. 실제 실행 시에만 다음 값을 외부에서
-주입합니다. 자격 증명이 비어 있으면 Naver 선택 상태의 애플리케이션 기동은 안전하게
-실패하며 값 자체는 오류에 노출되지 않습니다.
+필수 도구는 Java 17, 실행 중인 Docker와 Docker Compose plugin입니다.
 
 ```bash
-ECONPULSE_NEWS_PROVIDER_TYPE=naver \
-NAVER_NEWS_CLIENT_ID=replace-locally \
-NAVER_NEWS_CLIENT_SECRET=replace-locally \
-./gradlew bootRun
-```
-
-기본 endpoint는 `https://openapi.naver.com`, connect/read timeout은 각각 2초/3초이며
-환경변수로 변경할 수 있습니다. 로컬 기본 profile은 Fake Provider를 선택하므로 Naver를
-사용하려면 provider type을 명시적으로 덮어써야 합니다.
-
-`NewsIngestionService`는 `NewsProvider`를 호출해 받은 기사를 `news_articles`에
-저장합니다. 중복 기준은 정규화된 `sourceUrl`의 SHA-256 해시(`source_url_hash`)
-입니다. URL은 앞뒤 공백 제거, URI 문법 검증, scheme/host 소문자화, fragment 제거,
-기본 포트 제거를 적용하고 query parameter는 임의로 제거하지 않습니다.
-
-수집 결과는 `fetched`, `created`, `updated`, `skipped`로 집계합니다. 신규 해시는
-생성, 기존 해시는 제목·요약·출처·URL·발행시각 중 실제 변경이 있으면 갱신,
-완전히 같은 기사나 동일 응답 내 중복 URL은 건너뜀으로 계산합니다. 기존 정상
-요약은 외부 응답의 빈 요약으로 덮어쓰지 않습니다. Provider 오류가 발생하면 저장
-작업을 수행하지 않고, DB unique 충돌은 수집 예외로 변환해 트랜잭션을 실패시킵니다.
-
-## Phase 3 저장 뉴스 조회
-
-`NewsQueryService`는 수집된 `NewsArticle`을 JPA 엔티티 대신 목록용
-`NewsSummaryResponse`와 상세용 `NewsDetailResponse`로 반환합니다. 목록은
-Repository 쿼리에서 `publishedAt DESC, id DESC`로 정렬하고 page/size를 적용하며,
-page는 0 이상, size는 1~100입니다. 향후 Controller 기본값으로 사용할 수 있도록
-`NewsPageQuery.defaults()`는 page 0, size 20을 제공합니다.
-
-DB의 UTC `DATETIME(6)`에 매핑된 `LocalDateTime`은 공통 변환기를 거쳐 DTO에서
-`Instant`로 노출합니다. 존재하지 않는 뉴스는 `NewsNotFoundException`과
-`ErrorCode.NEWS_NOT_FOUND`로 표현합니다. `GET /api/v1/news`와
-`GET /api/v1/news/{newsId}`에서 이 조회 계약을 공개합니다.
-
-## Phase 3 용어-뉴스 매핑 저장
-
-`TermNewsMappingService`는 명시적으로 전달된 economic term ID, news article ID,
-match type과 confidence score를 하나의 트랜잭션에서 저장합니다. 조합의 unique 기준은
-`(economic_term_id, news_article_id)`입니다. 신규 조합은 `CREATED`, 완전히 같거나
-약한 근거는 `SKIPPED`, 더 강한 근거는 `UPDATED`입니다.
-
-`EXACT_NAME`은 confidence score와 관계없이 `ALIAS`보다 우선합니다. 같은 match type은
-점수가 높아질 때만 갱신합니다. 점수는 0.0000~1.0000, 소수점 최대 4자리만 허용하고
-저장 전 scale 4로 정규화합니다. 신규 생성과 실제 갱신만 `matchedAt`을 현재 UTC로
-변경하며 SKIPPED는 기존 시각을 유지합니다. 비활성 용어는 신규·갱신 모두 거부합니다.
-
-동시 insert unique 충돌은 현재 명시적 `TERM_NEWS_MAPPING_CONFLICT`로 실패시킵니다.
-순차 재실행은 멱등적이지만 자동 재시도나 잠금은 아직 제공하지 않습니다. 이 저장
-서비스 자체는 이름·별칭 탐지나 조회 API를 담당하지 않으며, 뒤 절의 순수 매처와 제한된
-자동 매핑 Application 흐름이 각각 후보 계산과 저장 연결을 담당합니다.
-
-## Phase 3 순수 용어-뉴스 매칭
-
-`TermNewsMatcher`는 JPA 엔티티 대신 불변 입력인 `TermMatchTarget`과
-`NewsMatchContent`를 받아 한 용어와 한 뉴스의 최종 `TermMatchCandidate`를
-계산합니다. Spring Bean, Repository, HTTP Provider와 무관한 일반 Java 객체이며
-제목과 요약만 검사합니다.
-
-우선순위는 `제목 EXACT_NAME > 요약 EXACT_NAME > 제목 ALIAS > 요약 ALIAS`이며,
-동일 분류에서는 긴 정규화 표현, 그다음 사전순으로 결정합니다. 점수는 순서대로
-`1.0000`, `0.9000`, `0.8000`, `0.7000`입니다. 공통 정규화는 Unicode NFKC,
-trim, 연속 공백 축약, 영문 소문자화를 적용합니다. 순수 ASCII 영문·숫자 표현은
-ASCII 영숫자 토큰 경계를 확인하고, 한글 및 혼합 표현은 조사 결합을 위해 부분 문자열을
-허용합니다. 한 코드 포인트 별칭은 자동 후보에서 제외합니다.
-
-상세 정책은 `docs/07-term-news-matching-policy.md`에 있습니다. 순수 매처 자체는 후보
-계산만 제공하며 DB 조회나 `TermNewsMappingService` 호출 책임을 갖지 않습니다.
-
-## Phase 3 저장 데이터 자동 매핑
-
-단일 뉴스 처리는 `mapNews(AutoMapNewsCommand)`로 실행합니다. 뉴스 한 건을 조회한 뒤
-`@EntityGraph`로 별칭을 함께 적재한 ACTIVE 용어 전체를 ID 순서대로 순차 평가하고,
-후보만 기존 `TermNewsMappingService`에 전달합니다. 결과는 평가 용어, 후보,
-`CREATED`/`UPDATED`/`SKIPPED`, 미일치 수를 반환하며 한 호출의 조회와 모든 저장은
-하나의 트랜잭션입니다. 저장 중 실패하면 결과를 반환하지 않고 앞선 저장도 롤백합니다.
-
-이 단일 뉴스 기능은 `NewsIngestionService`에서 자동 호출하지 않습니다. 외부 수집 성공과
-매핑 실패를 결합하지 않도록 수집과 매핑은 독립 Application 기능으로 유지합니다.
-
-단일 뉴스 내부 API는 기본 비활성입니다. local에서도 명시적으로 활성화합니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local \
-ECONPULSE_INTERNAL_TERM_NEWS_MAPPING_ENABLED=true \
-./gradlew bootRun
-```
-
-저장 뉴스 ID 한 건을 동기 처리합니다.
-
-```bash
-curl -i \
-  -X POST \
-  "http://localhost:8080/internal/api/v1/news/1/term-mappings/auto"
-```
-
-같은 요청을 반복하면 기존 후보는 `skipped`로 집계되고 행 수는 증가하지 않습니다. 이
-기능 토글은 인증이 아니므로 운영에서는 인증 또는 네트워크 접근 제한이 필요합니다.
-활성 용어가 커져 요청 시간이 길어지면 향후 비동기 Job 전환을 별도 설계합니다.
-
-`TermNewsAutoMappingService`는 `TermNewsAutoMappingCommand`에 명시된 저장 뉴스 ID를
-한 번의 쿼리로 읽고, 별칭까지 함께 초기화한 ACTIVE 용어 전체를 조회합니다. 명령은
-중복을 제거한 양수 뉴스 ID를 오름차순 불변 목록으로 보관하며 최대 100개까지 허용합니다.
-요청 뉴스가 하나라도 없으면 저장 전에 `NEWS_NOT_FOUND`로 전체 호출을 실패시킵니다.
-
-Application 계층에서 엔티티를 `TermMatchTarget`과 `NewsMatchContent`로 변환한 뒤
-뉴스 ID, 용어 ID 오름차순으로 순수 매처를 실행합니다. 후보가 있을 때만
-`TermNewsMappingCommand`를 만들고 기존 `TermNewsMappingService`를 호출합니다.
-`matchedText`와 `matchedField`는 현재 DB에 저장하지 않습니다.
-
-결과는 요청·처리 뉴스 수, 활성 용어 수, 평가 조합 수, 후보 수,
-`CREATED`/`UPDATED`/`SKIPPED`, 미일치 조합 수를 제공합니다. 평가 조합 수는 후보와
-미일치의 합이고 후보 수는 세 저장 상태의 합입니다. AutoMappingService에는 큰
-트랜잭션을 두지 않으며 각 저장은 기존 MappingService의 트랜잭션을 사용합니다. 오류는
-즉시 전파하고 부분 성공 결과를 반환하지 않지만, 오류 전에 완료된 개별 트랜잭션을
-일괄 롤백하는 정책은 아닙니다.
-
-현재 계산량은 `요청 뉴스 수 × ACTIVE 용어 수`입니다. 초기 규모에서는 전체 활성 용어를
-순회하되 뉴스 입력을 100건으로 제한합니다. 데이터가 증가하면 후보 용어 사전 필터링이나
-검색 인덱스가 필요하며 전체 재처리는 반드시 페이지·청크 단위로 설계해야 합니다.
-
-### 내부 매핑 재처리 API
-
-`POST /internal/api/v1/mappings/rebuild`는 기본적으로 비활성화되며 뉴스 수집 API와
-독립적으로 동작합니다. local profile에서도 명시적으로 활성화해야 합니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local \
-ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED=true \
-./gradlew bootRun
-```
-
-먼저 용어 seed와 내부 뉴스 동기화 API로 저장 데이터와 뉴스 ID를 준비한 뒤 다음 요청을
-실행합니다.
-
-```bash
-curl -i \
-  -X POST "http://localhost:8080/internal/api/v1/mappings/rebuild" \
-  -H "Content-Type: application/json" \
-  -d '{"newsArticleIds":[1,2]}'
-```
-
-같은 요청을 다시 실행하면 첫 응답의 `created`가 두 번째에는 0이 되고 기존 후보는
-`skipped`로 집계되며 `term_news_mappings` 행 수는 유지됩니다. 요청 배열은 최대 100개고
-중복 ID는 허용하지만 Application Command에서 제거되므로 `requestedNewsCount`는 고유
-ID 수입니다. 일부 ID가 없으면 `404 NEWS_NOT_FOUND`로 실패하며 부분 성공 응답은 없습니다.
-
-이 토글은 기능 활성화 설정일 뿐 인증이 아닙니다. 운영에서는 별도 인증 또는 네트워크
-접근 제한이 필요합니다. ID 없는 전체 재처리, `all`, 기간 조건은 지원하지 않습니다.
-
-### 용어별 관련 뉴스 조회
-
-자동 매핑 후 실제 용어 ID로 관련 뉴스를 조회합니다.
-
-```bash
-curl -i \
-  "http://localhost:8080/api/v1/terms/1/news?page=0&size=20"
-```
-
-응답은 발행시각 내림차순, 같은 시각이면 뉴스 ID 내림차순이며 `matchType`과 JSON 숫자
-`confidenceScore`, UTC `matchedAt`을 포함합니다. 매핑이 없으면 404가 아니라 빈 페이지를
-반환합니다. Application Query는 ACTIVE 용어만 허용하고 미존재·INACTIVE 용어는 기존
-공개 용어 정책과 같이 `TERM_NOT_FOUND`로 처리합니다.
-local 검증 순서는 용어 seed 확인 → 내부 뉴스 동기화 → 저장 뉴스 ID 확인 → 내부 매핑
-rebuild → 관련 뉴스 조회입니다. 예시의 용어·뉴스 ID는 현재 로컬 DB의 실제 ID로 바꿔야
-합니다. 공개 용어 상세와 동일하게 미존재 또는 INACTIVE 용어는 `404 TERM_NOT_FOUND`입니다.
-
-## Phase 3 내부 뉴스 동기화
-
-`POST /internal/api/v1/news/sync`는 `NewsIngestionService`를 동기 실행하고
-`fetched`, `created`, `updated`, `skipped` 건수를 반환합니다. URL 해시 기반 기존
-멱등 저장을 그대로 사용하므로 같은 요청을 반복해도 뉴스 행이 중복되지 않습니다.
-
-내부 API는 기본 profile에서 비활성화됩니다. `local` profile은 local fixture를 가진
-`FakeNewsProvider`를 등록하고 내부 API를 활성화합니다. Fake Provider는 운영 기본
-profile에서 Bean으로 등록되지 않습니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
-```
-
-local에서도 명시적인 환경변수로 활성화 여부를 덮어쓸 수 있습니다.
-
-```bash
-SPRING_PROFILES_ACTIVE=local \
-ECONPULSE_INTERNAL_NEWS_SYNC_ENABLED=true \
-./gradlew bootRun
-```
-
-동기화 요청:
-
-```bash
-curl -i \
-  -X POST "http://localhost:8080/internal/api/v1/news/sync" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"기준금리","page":0,"size":20,"sort":"RECENCY"}'
-```
-
-같은 curl을 두 번 실행한 뒤 두 번째 응답의 `created=0`, `skipped` 증가와 공개
-목록 API의 `totalElements`가 유지되는지 확인합니다.
-
-```bash
-curl "http://localhost:8080/api/v1/news?page=0&size=20"
-```
-
-현재 제어는 기능 활성화 설정일 뿐 인증이 아닙니다. 운영 환경에 내부 API를 열 때는
-별도 인증 또는 네트워크 접근 제한을 반드시 추가해야 합니다.
-
-## 로컬 실행
-
-필수 도구:
-
-- JDK 17
-- 실행 중인 Docker와 Docker Compose plugin
-- smoke test 실행 시 `curl`
-
-처음 받은 저장소에서는 예제 파일을 복사합니다. 값은 로컬 placeholder이며 실제 Naver
-자격 증명이 필요하지 않습니다. `.env`는 Git에서 제외되고 내부 쓰기 API는 기본적으로
-비활성입니다.
-
-```bash
+git clone <repository-url> econ-pulse
+cd econ-pulse
 cp .env.example .env
-```
-
-인프라 health 대기와 foreground 애플리케이션 실행을 한 번에 시작합니다.
-
-```bash
 ./scripts/run-local.sh
 ```
 
-이 스크립트는 Java 17·Docker를 확인하고 MySQL·Redis가 healthy가 될 때까지 기다린 뒤
-local profile을 foreground로 실행합니다. `Ctrl-C`는 이 애플리케이션만 종료하며 인프라는
-`docker compose down`으로 별도 종료합니다. MySQL 호스트 기본 포트는 충돌을 피한
-`3308`이고 컨테이너 내부는 `3306`입니다.
-
-직접 실행하려면 같은 환경에서 다음 순서를 사용합니다.
+`.env.example`에는 로컬 placeholder만 있으며 실제 Naver 자격 증명은 필요하지 않습니다.
+`run-local.sh`는 MySQL·Redis health를 기다린 뒤 local profile 애플리케이션을 foreground로
+실행합니다. `Ctrl-C`로 애플리케이션을 종료하고 인프라는 volume을 보존해 종료합니다.
 
 ```bash
-docker compose up -d --wait --wait-timeout 90
-SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+docker compose down
 ```
 
-현재 개발 단계는 Flyway 마이그레이션으로 스키마를 생성하고
-`spring.jpa.hibernate.ddl-auto=validate`로 엔티티와 DB 계약을 검증합니다.
-
-기동 후 health를 확인합니다.
+## Health 확인
 
 ```bash
+curl -i http://localhost:8080/actuator/health
+curl -i http://localhost:8080/actuator/health/liveness
 curl -i http://localhost:8080/actuator/health/readiness
 ```
 
-애플리케이션은 기본적으로 `http://localhost:8080`에서 실행됩니다.
-경제용어 API 기본 경로는 `/api/v1/terms`입니다.
+Readiness는 MySQL과 Redis를 포함하고 Naver는 포함하지 않습니다. 공개 Actuator endpoint는
+`health`, `info`뿐이며 `/actuator/metrics`와 `/actuator/prometheus`는 노출하지 않습니다.
 
-기존 개발 volume을 건드리지 않는 전체 클린 재현은 별도 Compose project·포트와 임시
-저장소 복사본에서 실행합니다. Java 17이 현재 셸에 선택되어 있어야 합니다.
+## Smoke test와 클린 재현
+
+기존 개발 volume을 건드리지 않는 권장 검증은 다음과 같습니다.
 
 ```bash
 ./scripts/verify-clean-environment.sh
 ```
 
-스크립트는 빈 MySQL의 Flyway 적용, 실제 애플리케이션 readiness, Fake Provider 기반 핵심
-HTTP smoke, 재기동 시 migration 비중복과 cleanup을 검증합니다. 운영 서버나 공유 개발
-DB에는 `smoke-test.sh`를 실행하지 마십시오. 상세 절차와 설정 책임은
-`docs/14-local-and-operational-runbook.md`에 있습니다.
+별도 Compose project·포트와 임시 저장소 복사본에서 빈 MySQL Flyway migration,
+애플리케이션 readiness, Fake 뉴스 수집, 자동 매핑·관련 뉴스, 상세 조회·인기 순위,
+재기동과 cleanup을 검증합니다. 쓰기 smoke를 공유 DB나 운영 서버에 실행하지 마십시오.
 
-### API 예제
-
-저장 뉴스 최신순 목록과 상세 조회:
-
-```bash
-curl "http://localhost:8080/api/v1/news?page=0&size=20"
-curl "http://localhost:8080/api/v1/news/1"
-```
-
-목록은 `publishedAt DESC, id DESC` 순서이며 page 기본값은 0, size 기본값은
-20입니다. page는 0 이상, size는 1~100이어야 합니다.
-
-경제용어 등록:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/terms \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"기준금리","definition":"중앙은행이 금융시장에 적용하는 기준이 되는 금리","aliases":["정책금리","base rate"]}'
-```
-
-응답은 `201 Created`와 `Location: /api/v1/terms/{id}`를 반환합니다.
-
-```json
-{
-  "id": 1,
-  "name": "기준금리",
-  "definition": "중앙은행이 금융시장에 적용하는 기준이 되는 금리",
-  "aliases": ["정책금리", "base rate"],
-  "latestNewsCount": 0,
-  "createdAt": "2026-07-14T00:00:00Z",
-  "updatedAt": "2026-07-14T00:00:00Z"
-}
-```
-
-페이징 목록 조회:
-
-```bash
-curl 'http://localhost:8080/api/v1/terms?page=0&size=20'
-```
-
-이름 검색:
-
-```bash
-curl 'http://localhost:8080/api/v1/terms?query=기준&page=0&size=20'
-```
-
-별칭 검색:
-
-```bash
-curl 'http://localhost:8080/api/v1/terms?query=정책&page=0&size=20'
-```
-
-목록과 검색 응답:
-
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "name": "기준금리",
-      "definition": "중앙은행이 금융시장에 적용하는 기준이 되는 금리",
-      "aliases": ["정책금리", "base rate"]
-    }
-  ],
-  "page": 0,
-  "size": 20,
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
-
-상세 조회:
-
-```bash
-curl 'http://localhost:8080/api/v1/terms/1'
-```
-
-수정:
-
-```bash
-curl -X PUT http://localhost:8080/api/v1/terms/1 \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"기준금리","definition":"중앙은행의 정책금리","aliases":["정책금리","base rate"]}'
-```
-
-비활성화 삭제:
-
-```bash
-curl -X DELETE http://localhost:8080/api/v1/terms/1
-```
-
-Validation 실패:
-
-```json
-{
-  "code": "INVALID_REQUEST",
-  "message": "name: must not be blank",
-  "timestamp": "2026-07-14T00:00:00Z"
-}
-```
-
-존재하지 않는 용어:
-
-```json
-{
-  "code": "TERM_NOT_FOUND",
-  "message": "Economic term was not found.",
-  "timestamp": "2026-07-14T00:00:00Z"
-}
-```
-
-중복 이름:
-
-```json
-{
-  "code": "DUPLICATE_TERM_NAME",
-  "message": "Economic term name already exists.",
-  "timestamp": "2026-07-14T00:00:00Z"
-}
-```
-
-## 검증
+## 전체 검증
 
 ```bash
 bash -n scripts/*.sh
+docker compose config
 ./scripts/check.sh
-docker compose config
-```
-
-`./scripts/check.sh`는 스크립트 문법 검사, `./gradlew clean check`,
-`docker compose config`를 중복 없이 실행합니다. Docker가 실행 중이면
-Testcontainers 기반 MySQL 통합 테스트도 함께 실행됩니다.
-
-`.github/workflows/ci.yml`의 `CI` workflow는 `main` push, 모든 pull request와 수동 실행에서
-Ubuntu·Temurin Java 17 환경의 전체 품질 검증을 자동 실행합니다. 저장소 Gradle Wrapper를
-검증한 뒤 MySQL·Redis Testcontainers 테스트, Checkstyle, JaCoCo, ArchUnit, shell syntax,
-Compose config와 patch whitespace를 확인합니다. 실제 Naver·DB·Redis 운영 Secret은
-필요하지 않으며 GitHub Token은 repository contents read-only입니다.
-
-CI와 같은 전체 build 경계를 push 전에 재현하려면 다음을 실행합니다.
-
-```bash
-bash -n scripts/*.sh
-docker compose config
 git diff --check
-./gradlew clean build --no-daemon --stacktrace
 ```
 
-실패한 test·JaCoCo·Checkstyle report는 CI 실행별 artifact로 7일 보관합니다. Trigger,
-보안, concurrency와 실패 분석 절차는 `docs/13-continuous-integration.md`에 있습니다.
+`check.sh`는 Gradle test, Checkstyle, JaCoCo, ArchUnit과 MySQL·Redis Testcontainers 테스트를
+포함합니다. CI는 main push, 모든 pull request와 수동 실행에서 같은 품질 기준을 검증하며
+main push 기준 실제 성공을 확인했습니다.
 
-로컬 데이터베이스와 Redis volume 초기화는 해당 Compose project의 모든 개발 데이터를
-삭제합니다. project 이름을 확인하고 명시적으로 허용해야만 실행됩니다.
+## 문서
 
-```bash
-ALLOW_DATA_RESET=true COMPOSE_PROJECT_NAME=econ-pulse ./scripts/reset-db.sh
-```
+- [제품 요구사항](docs/01-product-requirements.md)
+- [도메인 모델](docs/02-domain-model.md)
+- [API 계약](docs/03-api-spec.md)
+- [DB·Redis 스키마](docs/04-db-schema.md)
+- [Phase별 개발 계획](docs/05-development-plan.md)
+- [뉴스 Provider 계약](docs/06-news-provider-adapter-contract.md)
+- [용어-뉴스 매칭 정책](docs/07-term-news-matching-policy.md)
+- [인기 용어 정책](docs/08-popular-term-policy.md)
+- [운영 Health](docs/09-operational-health.md)
+- [운영 로깅](docs/10-operational-logging.md)
+- [운영 메트릭](docs/11-operational-metrics.md)
+- [DB 성능 분석](docs/12-database-performance.md)
+- [CI 운영](docs/13-continuous-integration.md)
+- [로컬·운영 실행 Runbook](docs/14-local-and-operational-runbook.md)
+- [후속 Backlog](docs/15-backlog.md)
 
-일반 점검이나 클린 환경 검증에는 이 명령을 사용하지 않습니다.
+## 완료 상태와 backlog
 
-## 로컬 Seed 데이터
-
-Flyway 기본 마이그레이션에는 운영용 샘플 데이터를 넣지 않습니다. 테스트 데이터는
-테스트 코드에서 만들고, 로컬 개발용 경제용어 샘플은 명시적으로 실행하는
-`local` profile seed만 사용합니다. 운영 환경에서 seed는 자동 실행되지 않으며,
-실제 API 키나 외부 뉴스 데이터도 포함하지 않습니다.
-
-로컬 MySQL이 실행 중일 때 다음 명령으로 샘플 경제용어 10개를 넣습니다.
-
-```bash
-./scripts/seed-local.sh
-```
-
-포함 용어는 기준금리, 환율, 물가상승률, 국내총생산, 소비자물가지수, 양적완화,
-채권, 주가수익비율, 경기침체, 무역수지입니다. 각 용어에는 이름 검색과 별칭
-검색 검증이 가능한 별칭이 포함됩니다. 스크립트는 같은 정규화 이름이 이미 있으면
-건너뛰므로 재실행해도 중복 데이터를 만들지 않습니다.
-
-## 검색 성능 검토
-
-MySQL 8의 실제 계획을 경제용어 5,000개, 별칭 10,000개, 뉴스 20,000개와 매핑
-50,000개 이상으로 점검했습니다. ACTIVE 목록은 `(status,name,id)`, 뉴스 첫 페이지는
-`published_at` reverse scan, 멱등 조회는 각 UNIQUE index, 인기 ID batch는 PK를
-사용합니다. 동일 UNIQUE와 중복이던 별칭·매핑 일반 index 두 개만 Flyway V2에서
-제거했고 새로운 읽기 index는 추가하지 않았습니다. 상세 결과는
-`docs/12-database-performance.md`에 있습니다.
-
-현재 이름·별칭 검색은 API 계약대로 `LIKE '%keyword%'` contains 검색입니다. 선행
-wildcard 때문에 일반 B-tree로 full scan 성격을 제거할 수 없으며 데이터 증가에 따라
-비용이 커집니다. 검색 의미나 FULLTEXT 도입은 별도 제품 결정으로 남깁니다.
-
-disposable local analysis database에 대표 데이터를 만들고 실제 계획을 재현하려면 먼저
-그 database에 Flyway schema를 적용한 뒤 다음처럼 명시적으로 실행합니다.
-
-```bash
-ANALYZE_QUERY_PLANS_CONFIRM=local \
-MYSQL_DATABASE=econpulse_query_analysis \
-./scripts/analyze-query-plans.sh
-```
-
-이 스크립트는 데이터를 insert하고 SELECT를 실제 실행하는 `EXPLAIN ANALYZE`를 포함합니다.
-database 이름에 `analysis`가 없으면 거부하지만 운영 DB에서 임의로 실행해서는 안 됩니다.
+Phase 0부터 Phase 5까지 완료했습니다. 완료 범위는 백엔드 MVP, 핵심 운영 관측,
+자동 테스트·CI, DB 성능 점검과 로컬 클린 재현입니다. PopularTermSnapshot, 스케줄러,
+실제 Naver credential smoke, Prometheus·Grafana, 이미지 배포·CD와 Kubernetes 등은
+[후속 Backlog](docs/15-backlog.md)에 분리했습니다.

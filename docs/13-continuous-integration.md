@@ -112,3 +112,7 @@ JaCoCo와 ArchUnit 기준은 같은 Gradle task graph를 사용한다.
 로컬 정적 검증은 원격 runner와 event context를 완전히 재현하지 않는다. push 후 첫 실행에서
 trigger, concurrency 취소, cache, wrapper validation, Testcontainers와 artifact 업로드를
 GitHub Actions UI에서 확인해야 한다.
+
+Phase 5 완료 점검에서 main push 기준 원격 `CI` workflow 성공을 확인했다. 특정 run ID나
+일시적인 URL은 문서 계약으로 고정하지 않으며, 이후 변경도 같은 workflow와 품질 기준을
+계속 통과해야 한다.

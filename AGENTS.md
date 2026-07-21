@@ -2,9 +2,19 @@
 
 ## Project Goal
 
-EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current news and Redis-backed real-time popular search terms. Phase 2 and Phase 3 are complete. Phase 3 covers provider-neutral news collection, idempotent storage, pure term matching, idempotent term-news mapping, explicit single-news automatic mapping, and public term-related-news retrieval.
+EconPulse is a Spring Boot backend that extends an economic glossary with automatically mapped current
+news and Redis-backed daily popular terms. Phases 0 through 5 are complete. EconPulse backend MVP and
+the Phase 5 operational-readiness scope are complete at version 1.0.0: product flows, automated tests,
+CI, bounded operational observability, MySQL query-plan review, and isolated clean-environment
+reproduction are verified. This status does not claim production deployment or zero-downtime
+operations; product and infrastructure extensions remain in `docs/15-backlog.md`.
 
-Implemented Phase 3 scope includes provider-neutral news collection, idempotent storage, automatic term matching and the public term-related-news API. A Fake Provider E2E test covers ingestion through public related-news retrieval and repeat-run idempotency. Phase 4 is complete. It includes an independent Redis Sorted Set Port/Adapter for UTC daily term-ID detail-view counts with seven-day TTL, an Application Query that joins ranked IDs to ACTIVE MySQL terms in one query, the public API for today's popular terms, and automatic recording after a successful public economic-term detail view. Missing and inactive IDs are filtered and exposed ranks are recalculated. Popular ranking read failures return 503, while detail-view recording is fail-open. Lists, searches, related news and internal APIs do not record. User-level deduplication, MySQL snapshots, historical rankings and schedulers are operational backlog and do not block Phase 4 completion. Phase 5 is in progress. Spring Boot Actuator exposes only health and info on the application port; liveness reflects application state, while readiness requires MySQL and Redis. Naver is not a readiness dependency and no external provider call is made by health checks. Every HTTP response carries a validated or server-generated `X-Request-Id`; the synchronous request scope stores only `requestId` in MDC and emits one structured completion event without query strings, bodies or headers. Default logs use Spring Boot's built-in Logstash JSON format, while local logs remain human-readable with request correlation.
+The completed flow includes provider-neutral and idempotent news ingestion, pure and idempotent
+term-news mapping, public related-news retrieval, and Redis UTC daily term-detail-view rankings.
+Popular ranking read failures return 503 while detail-view recording is fail-open. Actuator exposes
+only health and info; readiness requires MySQL and Redis but never Naver. Every response includes a
+validated or generated `X-Request-Id`, production-default logs are structured JSON, local logs remain
+human-readable, and Micrometer metrics stay inside `MeterRegistry` without a public metrics endpoint.
 
 Micrometer Core now records bounded-tag counters and timers for news ingestion, actual Naver HTTP
 calls, single-news automatic mapping, and popular-term Redis record/query boundaries. Metrics remain
@@ -47,7 +57,11 @@ Mirror production packages under `src/test/java/com/econpulse`. Keep migrations 
 
 ## Development Workflow
 
-Implement one phase at a time. Before coding, identify the phase and its success criteria. Prefer small changes that preserve documented API and persistence contracts. Phase 3 work must keep external news providers behind a port and must keep provider-specific DTOs inside adapter packages. The Fake Adapter is for tests/local development and must not be wired as the production provider. Phase 4 Redis behavior must remain isolated from completed Phase 2 and 3 flows until an explicit orchestration task connects them.
+All planned phases are complete. For follow-up work, identify the backlog item and its acceptance criteria
+before coding, and prefer small changes that preserve the completed API and persistence contracts.
+External news providers must remain behind a port and provider DTOs inside adapter packages. The Fake
+Adapter is for tests/local development and must not be wired as the production provider. Redis ranking
+behavior stays behind its Port; only the documented successful-detail-view facade records scores.
 
 ## Style and Naming
 

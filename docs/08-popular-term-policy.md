@@ -4,8 +4,8 @@
 
 Phase 4 완료 범위는 Redis 실시간 일간 점수의 저장 경계, Redis 인기 ID를 ACTIVE MySQL
 용어 정보에 결합하는 Application 조회, UTC 오늘의 공개 API와 공개 상세 조회 성공 기록이다.
-MySQL Snapshot, 과거 조회와 스케줄러는 운영 개선 backlog로 분리하며 Phase 4 완료를
-막지 않는다. 다음 구현 단계는 Phase 5 통합 품질과 운영 준비다.
+MySQL Snapshot, 과거 조회와 스케줄러는 완료 범위 밖의 운영 개선 backlog로 분리하며
+`docs/15-backlog.md`에서 관리한다.
 
 ## 저장 계약
 

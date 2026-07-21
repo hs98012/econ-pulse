@@ -2,7 +2,7 @@
 
 ## 범위
 
-Phase 5 첫 단계는 Spring Boot Actuator 기본 기능으로 애플리케이션 상태를 제공한다.
+완료된 Phase 5 범위는 Spring Boot Actuator 기본 기능으로 애플리케이션 상태를 제공한다.
 애플리케이션과 같은 포트를 사용하고 web endpoint는 `health`와 `info`만 노출한다.
 별도 management port, Spring Security 인증과 네트워크 ACL은 아직 구현하지 않았다.
 

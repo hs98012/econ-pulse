@@ -17,8 +17,8 @@ EconPulse는 경제용어 사전을 기반으로 최신 경제 뉴스를 자동 
 - 경제용어 등록, 조회, 검색
 - 뉴스 메타데이터 수집 및 조회
 - 제목·요약의 용어 기반 자동 매핑
-- 검색 이벤트의 Redis 실시간 집계
-- 인기 검색어 조회 및 MySQL 스냅샷 보관
+- 공개 경제용어 상세 조회 성공의 Redis UTC 일간 집계
+- 오늘의 인기 경제용어 조회
 
 ### 초기 범위 제외
 
@@ -71,9 +71,9 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
 - 공개 경제용어 상세 조회 성공 후 해당 용어의 UTC 오늘 점수를 요청마다 1 증가시킨다.
   기록 Redis 장애는 상세 조회를 실패시키지 않는 fail-open이며 목록·검색·관련 뉴스·내부
   API는 기록하지 않는다.
-- 사용자·세션별 중복 제거, MySQL Snapshot, 과거 순위와 스케줄러는 Phase 4 완료를 막지
-  않는 운영 개선 backlog다. 다음 단계는 Phase 5 통합 품질과 운영 준비다.
-- Phase 5는 진행 중이다. Actuator health·info와 liveness·readiness probe를 같은
+- 사용자·세션별 중복 제거, MySQL Snapshot, 과거 순위와 스케줄러는 완료 범위 밖이며
+  `docs/15-backlog.md`에서 관리한다.
+- Phase 5는 완료했다. Actuator health·info와 liveness·readiness probe를 같은
   애플리케이션 포트에 추가했다. Readiness는 MySQL과 Redis를 필수 의존성으로 사용하고,
   liveness와 readiness 모두 Naver API를 호출하지 않는다.
 - Micrometer 기반 뉴스 수집·Naver 호출·단일 뉴스 자동 매핑·Redis 인기 기록/조회 핵심
@@ -87,3 +87,6 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
   local은 requestId가 보이는 console pattern이다.
 - 요청·응답 body, query string과 인증·쿠키·Provider 자격 증명은 기록하지 않는다.
   비동기 MDC 전파, 분산 추적과 로그 수집 인프라는 후속 backlog다.
+- 별도 Compose project의 빈 MySQL·Redis에서 Flyway, readiness, Fake 뉴스·자동 매핑·관련
+  뉴스·인기 순위 smoke와 재기동 cleanup을 검증했다. Phase 0부터 Phase 5까지의 백엔드 MVP와
+  핵심 운영 준비 범위는 버전 1.0.0에서 완료했다.

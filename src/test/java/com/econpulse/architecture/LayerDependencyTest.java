@@ -139,6 +139,32 @@ class LayerDependencyTest {
             .resideInAnyPackage("jakarta.servlet..", "org.springframework.web.filter..");
 
     @ArchTest
+    static final ArchRule applicationAndDomainDoNotDependOnMicrometer = noClasses()
+            .that()
+            .resideInAnyPackage("..application..", "..domain..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("io.micrometer..");
+
+    @ArchTest
+    static final ArchRule controllersDoNotDependOnMetricsAdapters = noClasses()
+            .that()
+            .areAnnotatedWith(RestController.class)
+            .or()
+            .areAnnotatedWith(Controller.class)
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("..infrastructure.metrics..");
+
+    @ArchTest
+    static final ArchRule metricsAdaptersDoNotDependOnRepositoriesOrServices = noClasses()
+            .that()
+            .resideInAPackage("..infrastructure.metrics..")
+            .should()
+            .dependOnClassesThat()
+            .haveNameMatching(".*\\.(.*Repository|.*Service)");
+
+    @ArchTest
     static final ArchRule controllersAndDomainDoNotManipulateMdc = noClasses()
             .that()
             .areAnnotatedWith(RestController.class)

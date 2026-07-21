@@ -76,9 +76,11 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
 - Phase 5는 진행 중이다. Actuator health·info와 liveness·readiness probe를 같은
   애플리케이션 포트에 추가했다. Readiness는 MySQL과 Redis를 필수 의존성으로 사용하고,
   liveness와 readiness 모두 Naver API를 호출하지 않는다.
-- 구조화 로깅, 커스텀 비즈니스 메트릭, DB 인덱스 최적화와 CI는 후속 Phase 5 작업이다.
+- Micrometer 기반 뉴스 수집·Naver 호출·단일 뉴스 자동 매핑·Redis 인기 기록/조회 핵심
+  Counter와 Timer를 구현했다. 메트릭은 내부 MeterRegistry에만 등록하고 web endpoint로
+  노출하지 않는다. DB 인덱스 최적화와 CI는 후속 Phase 5 작업이다.
 - Phase 5 요청 추적을 구현했다. 모든 HTTP 응답은 안전한 `X-Request-Id`를 포함하고 동기
   요청 범위의 MDC와 구조화 완료·오류 로그가 같은 ID를 사용한다. 운영 기본 로그는 JSON,
   local은 requestId가 보이는 console pattern이다.
 - 요청·응답 body, query string과 인증·쿠키·Provider 자격 증명은 기록하지 않는다.
-  비동기 MDC 전파, 분산 추적, 커스텀 메트릭과 로그 수집 인프라는 후속 backlog다.
+  비동기 MDC 전파, 분산 추적과 로그 수집 인프라는 후속 backlog다.

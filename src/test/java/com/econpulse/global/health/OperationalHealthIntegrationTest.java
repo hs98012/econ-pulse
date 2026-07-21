@@ -10,9 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.econpulse.global.error.GlobalExceptionHandler;
+import com.econpulse.mapping.application.TermNewsMappingMetrics;
+import com.econpulse.mapping.infrastructure.metrics.MicrometerTermNewsMappingMetrics;
+import com.econpulse.news.application.port.NewsIngestionMetrics;
+import com.econpulse.news.infrastructure.metrics.MicrometerNewsIngestionMetrics;
 import com.econpulse.popular.api.PopularTermController;
+import com.econpulse.popular.application.PopularTermMetrics;
+import com.econpulse.popular.infrastructure.metrics.MicrometerPopularTermMetrics;
 import com.econpulse.support.AbstractIntegrationTest;
 import com.econpulse.term.api.EconomicTermController;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
@@ -50,6 +57,10 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
     private final PopularTermController popularTermController;
     private final GlobalExceptionHandler globalExceptionHandler;
     private final Environment environment;
+    private final MeterRegistry meterRegistry;
+    private final NewsIngestionMetrics newsIngestionMetrics;
+    private final TermNewsMappingMetrics termNewsMappingMetrics;
+    private final PopularTermMetrics popularTermMetrics;
 
     @Autowired
     OperationalHealthIntegrationTest(
@@ -60,7 +71,11 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
             EconomicTermController economicTermController,
             PopularTermController popularTermController,
             GlobalExceptionHandler globalExceptionHandler,
-            Environment environment
+            Environment environment,
+            MeterRegistry meterRegistry,
+            NewsIngestionMetrics newsIngestionMetrics,
+            TermNewsMappingMetrics termNewsMappingMetrics,
+            PopularTermMetrics popularTermMetrics
     ) {
         this.mockMvc = mockMvc;
         this.healthEndpoint = healthEndpoint;
@@ -70,6 +85,10 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
         this.popularTermController = popularTermController;
         this.globalExceptionHandler = globalExceptionHandler;
         this.environment = environment;
+        this.meterRegistry = meterRegistry;
+        this.newsIngestionMetrics = newsIngestionMetrics;
+        this.termNewsMappingMetrics = termNewsMappingMetrics;
+        this.popularTermMetrics = popularTermMetrics;
     }
 
     @DynamicPropertySource
@@ -89,6 +108,10 @@ class OperationalHealthIntegrationTest extends AbstractIntegrationTest {
         assertThat(healthContributorRegistry.getContributor("naver")).isNull();
         assertThat(environment.getProperty("logging.structured.format.console"))
                 .isEqualTo("logstash");
+        assertThat(meterRegistry).isNotNull();
+        assertThat(newsIngestionMetrics).isInstanceOf(MicrometerNewsIngestionMetrics.class);
+        assertThat(termNewsMappingMetrics).isInstanceOf(MicrometerTermNewsMappingMetrics.class);
+        assertThat(popularTermMetrics).isInstanceOf(MicrometerPopularTermMetrics.class);
     }
 
     @Test

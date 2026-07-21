@@ -11,7 +11,9 @@ import com.econpulse.news.application.port.NewsSearchResult;
 import com.econpulse.news.application.port.NewsSort;
 import com.econpulse.news.infrastructure.provider.naver.NaverNewsProperties;
 import com.econpulse.news.infrastructure.provider.naver.NaverNewsProvider;
+import com.econpulse.news.infrastructure.metrics.MicrometerNewsProviderMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import okhttp3.HttpUrl;
@@ -22,12 +24,14 @@ class NaverNewsProviderContractTest extends AbstractHttpNewsProviderContractTest
 
     private static final String CLIENT_ID = "test-client-id";
     private static final String CLIENT_SECRET = "test-client-secret";
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @Override
     protected NewsProvider createProvider(String baseUrl, Duration connectTimeout, Duration readTimeout) {
         return new NaverNewsProvider(
                 new NaverNewsProperties(baseUrl, CLIENT_ID, CLIENT_SECRET, connectTimeout, readTimeout),
-                new ObjectMapper().findAndRegisterModules()
+                new ObjectMapper().findAndRegisterModules(),
+                new MicrometerNewsProviderMetrics(meterRegistry)
         );
     }
 
@@ -102,6 +106,32 @@ class NaverNewsProviderContractTest extends AbstractHttpNewsProviderContractTest
             assertThat(exception.isRetryable()).isFalse();
         });
         assertThat(mockServer().getRequestCount()).isZero();
+        assertThat(meterRegistry.find("econpulse.news.provider.requests").meters()).isEmpty();
+    }
+
+    @Test
+    void recordsOnlyBoundedMetricsForActualSuccessfulAndFailedHttpRequests() {
+        enqueueFixture(200, "naver/page-zero.json");
+        contractProvider().search(new NewsSearchQuery("비밀 검색어", 0, 10, NewsSort.RECENCY));
+
+        enqueueFixture(401, "error-body.json");
+        assertThatThrownBy(() -> contractProvider().search(
+                new NewsSearchQuery("다른 검색어", 0, 10, NewsSort.RECENCY)
+        )).isInstanceOf(NewsProviderException.class);
+
+        assertThat(meterRegistry.get("econpulse.news.provider.requests")
+                .tags("provider", "naver", "outcome", "success", "error", "none")
+                .counter().count()).isEqualTo(1);
+        assertThat(meterRegistry.get("econpulse.news.provider.requests")
+                .tags("provider", "naver", "outcome", "failure", "error", "authentication")
+                .counter().count()).isEqualTo(1);
+        assertThat(meterRegistry.find("econpulse.news.provider.duration").timers())
+                .allMatch(timer -> timer.count() == 1);
+        assertThat(meterRegistry.getMeters())
+                .flatExtracting(meter -> meter.getId().getTags())
+                .noneMatch(tag -> tag.getValue().contains("검색어")
+                        || tag.getValue().contains(CLIENT_ID)
+                        || tag.getValue().contains(CLIENT_SECRET));
     }
 
     @Test

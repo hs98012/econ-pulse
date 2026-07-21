@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -135,6 +136,35 @@ class PopularTermQueryServiceTest {
 
         assertThatThrownBy(() -> service.findPopularTerms(new PopularTermQuery(DATE, 1)))
                 .isSameAs(failure);
+    }
+
+    @Test
+    void reportsSuccessUnavailableAndUnexpectedFailureAtQueryBoundary() {
+        PopularTermMetrics metrics = mock(PopularTermMetrics.class);
+        PopularTermMetrics.Query success = mock(PopularTermMetrics.Query.class);
+        PopularTermMetrics.Query unavailable = mock(PopularTermMetrics.Query.class);
+        PopularTermMetrics.Query failure = mock(PopularTermMetrics.Query.class);
+        when(metrics.startQuery()).thenReturn(success, unavailable, failure);
+        PopularTermQueryService measured = new PopularTermQueryService(store, repository, clock, metrics);
+        when(store.findTop(DATE, 10)).thenReturn(List.of());
+
+        assertThat(measured.findPopularTerms(new PopularTermQuery(DATE, 10))).isEmpty();
+        verify(success).success();
+
+        PopularTermStoreException redisFailure = new PopularTermStoreException(
+                PopularTermStoreException.Reason.UNAVAILABLE,
+                "unavailable"
+        );
+        when(store.findTop(DATE, 10)).thenThrow(redisFailure);
+        assertThatThrownBy(() -> measured.findPopularTerms(new PopularTermQuery(DATE, 10)))
+                .isSameAs(redisFailure);
+        verify(unavailable).unavailable();
+
+        reset(store);
+        when(store.findTop(DATE, 10)).thenThrow(new IllegalStateException("unexpected"));
+        assertThatThrownBy(() -> measured.findPopularTerms(new PopularTermQuery(DATE, 10)))
+                .isInstanceOf(IllegalStateException.class);
+        verify(failure).failure();
     }
 
     private EconomicTerm term(long id, String name, String definition) {

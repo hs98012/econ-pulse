@@ -13,6 +13,7 @@ import com.econpulse.term.domain.TermStatus;
 import com.econpulse.term.infrastructure.EconomicTermRepository;
 import java.util.Comparator;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class TermNewsAutoMappingService {
     private final NewsArticleRepository articleRepository;
     private final TermNewsMatcher matcher;
     private final TermNewsMappingService mappingService;
+    private final TermNewsMappingMetrics metrics;
 
     public TermNewsAutoMappingService(
             EconomicTermRepository termRepository,
@@ -30,10 +32,22 @@ public class TermNewsAutoMappingService {
             TermNewsMatcher matcher,
             TermNewsMappingService mappingService
     ) {
+        this(termRepository, articleRepository, matcher, mappingService, TermNewsMappingMetrics.NO_OP);
+    }
+
+    @Autowired
+    public TermNewsAutoMappingService(
+            EconomicTermRepository termRepository,
+            NewsArticleRepository articleRepository,
+            TermNewsMatcher matcher,
+            TermNewsMappingService mappingService,
+            TermNewsMappingMetrics metrics
+    ) {
         this.termRepository = termRepository;
         this.articleRepository = articleRepository;
         this.matcher = matcher;
         this.mappingService = mappingService;
+        this.metrics = metrics;
     }
 
     public TermNewsAutoMappingResult map(TermNewsAutoMappingCommand command) {
@@ -84,6 +98,18 @@ public class TermNewsAutoMappingService {
 
     @Transactional
     public AutoMapNewsResult mapNews(AutoMapNewsCommand command) {
+        TermNewsMappingMetrics.Run run = metrics.start();
+        try {
+            AutoMapNewsResult result = mapNewsInternal(command);
+            run.success(result);
+            return result;
+        } catch (RuntimeException | Error exception) {
+            run.failure();
+            throw exception;
+        }
+    }
+
+    private AutoMapNewsResult mapNewsInternal(AutoMapNewsCommand command) {
         if (command == null) {
             throw new IllegalArgumentException("command must not be null");
         }

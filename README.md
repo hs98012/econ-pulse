@@ -75,7 +75,13 @@ Liveness는 애플리케이션 프로세스 상태만 사용하므로 MySQL·Red
 
 Kubernetes probe 권장 경로는 `/actuator/health/liveness`와
 `/actuator/health/readiness`입니다. Actuator 인증과 네트워크 ACL은 아직 없으므로 현재는
-노출 endpoint를 health·info로 제한합니다. 운영 메트릭은 후속 작업입니다.
+노출 endpoint를 health·info로 제한합니다.
+
+Micrometer Core 기반 Counter와 Timer는 내부 `MeterRegistry`에 뉴스 수집, Naver 호출,
+단일 뉴스 자동 매핑, Redis 인기 기록·조회 결과와 시간을 기록합니다. ID, 검색어, URL,
+requestId 같은 high-cardinality 값은 tag로 사용하지 않습니다. 현재
+`/actuator/metrics`와 `/actuator/prometheus`는 노출하지 않으며 Prometheus Registry도
+추가하지 않았습니다. 세부 목록은 `docs/11-operational-metrics.md`를 참조합니다.
 
 ## Phase 5 요청 추적과 운영 로그
 
@@ -87,7 +93,8 @@ Kubernetes probe 권장 경로는 `/actuator/health/liveness`와
 사람이 읽기 쉬운 console pattern과 `[requestId=...]` 상관관계를 사용합니다. 요청 완료
 로그는 `event=http_request_completed`, method, query 없는 path, status, durationMs를
 기록하며 body, query string, Authorization, Cookie와 외부 자격 증명은 기록하지 않습니다.
-비동기 MDC 전파, 분산 추적, 로그 수집 인프라와 커스텀 메트릭은 아직 구현하지 않았습니다.
+비동기 MDC 전파, 분산 추적과 로그 수집 인프라는 아직 구현하지 않았습니다. requestId는
+로그 상관관계에만 사용하며 메트릭 tag에는 포함하지 않습니다.
 
 ## Phase 3 뉴스 제공자 Port
 

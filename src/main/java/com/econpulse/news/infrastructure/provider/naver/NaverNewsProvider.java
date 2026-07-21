@@ -3,6 +3,7 @@ package com.econpulse.news.infrastructure.provider.naver;
 import com.econpulse.news.application.port.NewsProvider;
 import com.econpulse.news.application.port.NewsProviderErrorType;
 import com.econpulse.news.application.port.NewsProviderException;
+import com.econpulse.news.application.port.NewsProviderMetrics;
 import com.econpulse.news.application.port.NewsSearchQuery;
 import com.econpulse.news.application.port.NewsSearchResult;
 import com.econpulse.news.application.port.NewsSort;
@@ -25,11 +26,21 @@ public class NaverNewsProvider implements NewsProvider {
     private final ObjectMapper objectMapper;
     private final NaverNewsResponseMapper responseMapper;
     private final RestClient restClient;
+    private final NewsProviderMetrics metrics;
 
     public NaverNewsProvider(NaverNewsProperties properties, ObjectMapper objectMapper) {
+        this(properties, objectMapper, NewsProviderMetrics.NO_OP);
+    }
+
+    public NaverNewsProvider(
+            NaverNewsProperties properties,
+            ObjectMapper objectMapper,
+            NewsProviderMetrics metrics
+    ) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.responseMapper = new NaverNewsResponseMapper();
+        this.metrics = metrics;
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(properties.connectTimeout())
                 .build();
@@ -44,6 +55,7 @@ public class NaverNewsProvider implements NewsProvider {
     @Override
     public NewsSearchResult search(NewsSearchQuery query) {
         int start = calculateStart(query);
+        NewsProviderMetrics.Request request = metrics.startRequest();
         try {
             byte[] body = restClient.get()
                     .uri(
@@ -61,27 +73,43 @@ public class NaverNewsProvider implements NewsProvider {
                 throw invalidResponse();
             }
             NaverNewsSearchResponse response = objectMapper.readValue(body, NaverNewsSearchResponse.class);
-            return responseMapper.map(response, query, start);
+            NewsSearchResult result = responseMapper.map(response, query, start);
+            request.success();
+            return result;
         } catch (RestClientResponseException exception) {
-            throw statusException(exception.getStatusCode());
+            throw recordFailure(request, statusException(exception.getStatusCode()));
         } catch (ResourceAccessException exception) {
             if (hasTimeoutCause(exception)) {
-                throw new NewsProviderException(NewsProviderErrorType.TIMEOUT, "News provider timed out.");
+                throw recordFailure(request, new NewsProviderException(
+                        NewsProviderErrorType.TIMEOUT,
+                        "News provider timed out."
+                ));
             }
-            throw new NewsProviderException(
+            throw recordFailure(request, new NewsProviderException(
                     NewsProviderErrorType.TEMPORARY_FAILURE,
                     "News provider connection failed."
-            );
+            ));
         } catch (NewsProviderException exception) {
-            throw exception;
+            throw recordFailure(request, exception);
         } catch (RestClientException exception) {
             if (hasTimeoutCause(exception) || hasNetworkIoCause(exception)) {
-                throw new NewsProviderException(NewsProviderErrorType.TIMEOUT, "News provider timed out.");
+                throw recordFailure(request, new NewsProviderException(
+                        NewsProviderErrorType.TIMEOUT,
+                        "News provider timed out."
+                ));
             }
-            throw invalidResponse();
+            throw recordFailure(request, invalidResponse());
         } catch (IOException | IllegalArgumentException exception) {
-            throw invalidResponse();
+            throw recordFailure(request, invalidResponse());
         }
+    }
+
+    private NewsProviderException recordFailure(
+            NewsProviderMetrics.Request request,
+            NewsProviderException exception
+    ) {
+        request.failure(exception.getErrorType());
+        return exception;
     }
 
     private int calculateStart(NewsSearchQuery query) {

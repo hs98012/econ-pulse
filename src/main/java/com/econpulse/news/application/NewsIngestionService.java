@@ -1,6 +1,7 @@
 package com.econpulse.news.application;
 
 import com.econpulse.news.application.port.NewsProvider;
+import com.econpulse.news.application.port.NewsIngestionMetrics;
 import com.econpulse.news.application.port.NewsProviderArticle;
 import com.econpulse.news.application.port.NewsSearchResult;
 import com.econpulse.news.domain.NewsArticle;
@@ -18,17 +19,20 @@ public class NewsIngestionService {
     private final NewsArticleRepository newsArticleRepository;
     private final NewsUrlHasher newsUrlHasher;
     private final Clock clock;
+    private final NewsIngestionMetrics metrics;
 
     public NewsIngestionService(
             NewsProvider newsProvider,
             NewsArticleRepository newsArticleRepository,
             NewsUrlHasher newsUrlHasher,
-            Clock clock
+            Clock clock,
+            NewsIngestionMetrics metrics
     ) {
         this.newsProvider = newsProvider;
         this.newsArticleRepository = newsArticleRepository;
         this.newsUrlHasher = newsUrlHasher;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     public NewsIngestionService(
@@ -36,11 +40,23 @@ public class NewsIngestionService {
             NewsArticleRepository newsArticleRepository,
             Clock clock
     ) {
-        this(newsProvider, newsArticleRepository, new NewsUrlHasher(), clock);
+        this(newsProvider, newsArticleRepository, new NewsUrlHasher(), clock, NewsIngestionMetrics.NO_OP);
     }
 
     @Transactional
     public NewsIngestionResult ingest(NewsIngestionCommand command) {
+        NewsIngestionMetrics.Run run = metrics.start();
+        try {
+            NewsIngestionResult result = ingestInternal(command);
+            run.success(result);
+            return result;
+        } catch (RuntimeException | Error exception) {
+            run.failure();
+            throw exception;
+        }
+    }
+
+    private NewsIngestionResult ingestInternal(NewsIngestionCommand command) {
         NewsSearchResult searchResult = newsProvider.search(command.toSearchQuery());
         Instant collectedAt = Instant.now(clock);
         Map<String, IngestionCandidate> candidates = new LinkedHashMap<>();

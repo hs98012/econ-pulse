@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.econpulse.popular.application.PopularTermService;
+import com.econpulse.popular.application.PopularTermMetrics;
 import com.econpulse.popular.application.RecordTermSearchCommand;
 import com.econpulse.popular.application.port.PopularTermStoreException;
 import java.time.Instant;
@@ -26,7 +27,12 @@ class EconomicTermDetailFacadeTest {
 
     private final EconomicTermService termService = mock(EconomicTermService.class);
     private final PopularTermService popularTermService = mock(PopularTermService.class);
-    private final EconomicTermDetailFacade facade = new EconomicTermDetailFacade(termService, popularTermService);
+    private final PopularTermMetrics metrics = mock(PopularTermMetrics.class);
+    private final EconomicTermDetailFacade facade = new EconomicTermDetailFacade(
+            termService,
+            popularTermService,
+            metrics
+    );
 
     @Test
     void returnsDetailAndRecordsExactIdAfterSuccessfulQuery() {
@@ -39,6 +45,7 @@ class EconomicTermDetailFacadeTest {
         order.verify(termService).findById(7L);
         order.verify(popularTermService).recordSearch(new RecordTermSearchCommand(7L));
         order.verifyNoMoreInteractions();
+        verify(metrics).recordSucceeded();
     }
 
     @Test
@@ -59,6 +66,7 @@ class EconomicTermDetailFacadeTest {
         assertThatThrownBy(() -> facade.findByIdAndRecordView(99L)).isSameAs(failure);
 
         verifyNoInteractions(popularTermService);
+        verifyNoInteractions(metrics);
     }
 
     @Test
@@ -79,9 +87,9 @@ class EconomicTermDetailFacadeTest {
         assertThat(output.getOut())
                 .contains("popular_term_record_failed")
                 .contains("economicTermId")
-                .contains("redis-failure-request-1234")
                 .doesNotContain("RedisCommandTimeoutException")
                 .doesNotContain("secret-host");
+        verify(metrics).recordUnavailable();
     }
 
     @Test
@@ -102,6 +110,7 @@ class EconomicTermDetailFacadeTest {
         when(termService.findById(8L)).thenReturn(detail(8L));
 
         assertThatThrownBy(() -> facade.findByIdAndRecordView(8L)).isSameAs(unexpected);
+        verifyNoInteractions(metrics);
     }
 
     private EconomicTermDetailResult detail(long id) {

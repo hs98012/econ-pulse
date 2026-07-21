@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.econpulse.news.application.port.NewsProvider;
+import com.econpulse.news.application.port.NewsIngestionMetrics;
 import com.econpulse.news.application.port.NewsProviderArticle;
 import com.econpulse.news.application.port.NewsProviderErrorType;
 import com.econpulse.news.application.port.NewsProviderException;
@@ -160,6 +161,31 @@ class NewsIngestionServiceTest {
                 .isInstanceOf(NewsProviderException.class)
                 .hasMessage("provider timeout");
         verify(newsArticleRepository, never()).saveAndFlush(any(NewsArticle.class));
+    }
+
+    @Test
+    void recordsApplicationBoundarySuccessAndFailureWithoutChangingResults() {
+        NewsIngestionMetrics metrics = Mockito.mock(NewsIngestionMetrics.class);
+        NewsIngestionMetrics.Run successRun = Mockito.mock(NewsIngestionMetrics.Run.class);
+        NewsIngestionMetrics.Run failureRun = Mockito.mock(NewsIngestionMetrics.Run.class);
+        when(metrics.start()).thenReturn(successRun, failureRun);
+        NewsIngestionService measured = new NewsIngestionService(
+                newsProvider,
+                newsArticleRepository,
+                new NewsUrlHasher(),
+                FIXED_CLOCK,
+                metrics
+        );
+        givenProviderReturns();
+
+        NewsIngestionResult result = measured.ingest(command("기준금리"));
+        NewsProviderException failure = new NewsProviderException(NewsProviderErrorType.TIMEOUT, "timeout");
+        when(newsProvider.search(any())).thenThrow(failure);
+
+        assertThat(result).isEqualTo(new NewsIngestionResult(0, 0, 0, 0));
+        assertThatThrownBy(() -> measured.ingest(command("기준금리"))).isSameAs(failure);
+        verify(successRun).success(result);
+        verify(failureRun).failure();
     }
 
     @Test

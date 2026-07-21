@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,15 +21,27 @@ public class PopularTermQueryService {
     private final PopularTermStore popularTermStore;
     private final EconomicTermRepository economicTermRepository;
     private final Clock clock;
+    private final PopularTermMetrics metrics;
 
     public PopularTermQueryService(
             PopularTermStore popularTermStore,
             EconomicTermRepository economicTermRepository,
             Clock clock
     ) {
+        this(popularTermStore, economicTermRepository, clock, PopularTermMetrics.NO_OP);
+    }
+
+    @Autowired
+    public PopularTermQueryService(
+            PopularTermStore popularTermStore,
+            EconomicTermRepository economicTermRepository,
+            Clock clock,
+            PopularTermMetrics metrics
+    ) {
         this.popularTermStore = popularTermStore;
         this.economicTermRepository = economicTermRepository;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     public List<PopularTermResponse> findTodayPopularTerms(int limit) {
@@ -36,6 +49,26 @@ public class PopularTermQueryService {
     }
 
     public List<PopularTermResponse> findPopularTerms(PopularTermQuery query) {
+        PopularTermMetrics.Query metric = metrics.startQuery();
+        try {
+            List<PopularTermResponse> result = findPopularTermsInternal(query);
+            metric.success();
+            return result;
+        } catch (com.econpulse.popular.application.port.PopularTermStoreException exception) {
+            if (exception.getReason()
+                    == com.econpulse.popular.application.port.PopularTermStoreException.Reason.UNAVAILABLE) {
+                metric.unavailable();
+            } else {
+                metric.failure();
+            }
+            throw exception;
+        } catch (RuntimeException | Error exception) {
+            metric.failure();
+            throw exception;
+        }
+    }
+
+    private List<PopularTermResponse> findPopularTermsInternal(PopularTermQuery query) {
         if (query == null) {
             throw new IllegalArgumentException("Popular term query must not be null.");
         }

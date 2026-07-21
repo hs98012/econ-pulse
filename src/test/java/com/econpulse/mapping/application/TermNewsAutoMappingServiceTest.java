@@ -198,6 +198,34 @@ class TermNewsAutoMappingServiceTest {
         assertThatThrownBy(() -> service.map(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void recordsSingleNewsApplicationBoundarySuccessAndFailure() {
+        TermNewsMappingMetrics metrics = org.mockito.Mockito.mock(TermNewsMappingMetrics.class);
+        TermNewsMappingMetrics.Run success = org.mockito.Mockito.mock(TermNewsMappingMetrics.Run.class);
+        TermNewsMappingMetrics.Run failure = org.mockito.Mockito.mock(TermNewsMappingMetrics.Run.class);
+        when(metrics.start()).thenReturn(success, failure);
+        TermNewsAutoMappingService measured = new TermNewsAutoMappingService(
+                termRepository,
+                articleRepository,
+                new TermNewsMatcher(),
+                mappingService,
+                metrics
+        );
+        NewsArticle article = article(2L, "환율 전망", null);
+        when(articleRepository.findById(2L)).thenReturn(java.util.Optional.of(article));
+        when(termRepository.findAllByStatusOrderByIdAsc(TermStatus.ACTIVE)).thenReturn(List.of());
+
+        AutoMapNewsResult result = measured.mapNews(new AutoMapNewsCommand(2L));
+
+        assertThat(result).isEqualTo(new AutoMapNewsResult(2L, 0, 0, 0, 0, 0, 0));
+        verify(success).success(result);
+
+        when(articleRepository.findById(3L)).thenReturn(java.util.Optional.empty());
+        assertThatThrownBy(() -> measured.mapNews(new AutoMapNewsCommand(3L)))
+                .isInstanceOf(NewsNotFoundException.class);
+        verify(failure).failure();
+    }
+
     private void prepare(List<NewsArticle> articles, List<EconomicTerm> terms) {
         List<Long> ids = articles.stream().map(NewsArticle::getId).sorted().toList();
         when(articleRepository.findAllByIdInOrderByIdAsc(ids)).thenReturn(articles);

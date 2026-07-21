@@ -523,6 +523,24 @@ docker compose config
 `docker compose config`를 중복 없이 실행합니다. Docker가 실행 중이면
 Testcontainers 기반 MySQL 통합 테스트도 함께 실행됩니다.
 
+`.github/workflows/ci.yml`의 `CI` workflow는 `main` push, 모든 pull request와 수동 실행에서
+Ubuntu·Temurin Java 17 환경의 전체 품질 검증을 자동 실행합니다. 저장소 Gradle Wrapper를
+검증한 뒤 MySQL·Redis Testcontainers 테스트, Checkstyle, JaCoCo, ArchUnit, shell syntax,
+Compose config와 patch whitespace를 확인합니다. 실제 Naver·DB·Redis 운영 Secret은
+필요하지 않으며 GitHub Token은 repository contents read-only입니다.
+
+CI와 같은 전체 build 경계를 push 전에 재현하려면 다음을 실행합니다.
+
+```bash
+bash -n scripts/*.sh
+docker compose config
+git diff --check
+./gradlew clean build --no-daemon --stacktrace
+```
+
+실패한 test·JaCoCo·Checkstyle report는 CI 실행별 artifact로 7일 보관합니다. Trigger,
+보안, concurrency와 실패 분석 절차는 `docs/13-continuous-integration.md`에 있습니다.
+
 로컬 데이터베이스와 Redis 볼륨을 초기화하려면 다음 명령을 실행합니다.
 
 ```bash

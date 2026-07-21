@@ -78,7 +78,10 @@ Java 17, Spring Boot, Gradle, Spring Web, Spring Data JPA, MySQL 8.0, Redis 7, L
   liveness와 readiness 모두 Naver API를 호출하지 않는다.
 - Micrometer 기반 뉴스 수집·Naver 호출·단일 뉴스 자동 매핑·Redis 인기 기록/조회 핵심
   Counter와 Timer를 구현했다. 메트릭은 내부 MeterRegistry에만 등록하고 web endpoint로
-  노출하지 않는다. DB 인덱스 최적화와 CI는 후속 Phase 5 작업이다.
+  노출하지 않는다. DB 인덱스·실행계획 점검과 GitHub Actions CI도 구현했다.
+- GitHub Actions는 main push, 모든 pull request와 수동 실행에서 Java 17 Gradle Wrapper,
+  전체 Testcontainers 테스트, Checkstyle, JaCoCo, ArchUnit, shell syntax와 Compose config를
+  검증한다. read-only Token만 사용하고 운영 Secret이나 배포 권한은 사용하지 않는다.
 - Phase 5 요청 추적을 구현했다. 모든 HTTP 응답은 안전한 `X-Request-Id`를 포함하고 동기
   요청 범위의 MDC와 구조화 완료·오류 로그가 같은 ID를 사용한다. 운영 기본 로그는 JSON,
   local은 requestId가 보이는 console pattern이다.

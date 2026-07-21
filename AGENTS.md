@@ -64,6 +64,13 @@ bash -n scripts/*.sh
 
 When Docker Compose configuration exists, also run `docker compose config`. For infrastructure or integration changes, run `./scripts/reset-db.sh` and the relevant integration tests. Report commands that could not run and the reason.
 
+GitHub Actions CI uses the same Gradle quality gates with MySQL and Redis managed by Testcontainers.
+For workflow changes, validate YAML structure and GitHub expressions, then run the local CI-equivalent
+commands documented in `docs/13-continuous-integration.md`. Do not weaken, skip, disable, or mark any
+quality step `continue-on-error`; do not replace Testcontainers with Actions service containers.
+Workflows must not contain real Secrets or request write permissions. Confirm official releases before
+changing Action major versions, and diagnose CI failures instead of repeatedly rerunning unchanged code.
+
 ## Commits and Pull Requests
 
 Use concise Conventional Commit subjects, for example `docs: define term-news mapping rules` or `feat: add popular term ranking`. Pull requests must state the phase, summarize contract changes, list verification commands, link issues, and include example requests or screenshots when behavior is user-visible.

@@ -343,46 +343,58 @@ curl "http://localhost:8080/api/v1/news?page=0&size=20"
 필수 도구:
 
 - JDK 17
-- Docker 및 Docker Compose
+- 실행 중인 Docker와 Docker Compose plugin
+- smoke test 실행 시 `curl`
 
-환경변수 기본값은 로컬 개발용으로 설정되어 있습니다. 값을 변경하려면 예제
-파일을 기준으로 `.env`를 작성합니다.
+처음 받은 저장소에서는 예제 파일을 복사합니다. 값은 로컬 placeholder이며 실제 Naver
+자격 증명이 필요하지 않습니다. `.env`는 Git에서 제외되고 내부 쓰기 API는 기본적으로
+비활성입니다.
 
 ```bash
 cp .env.example .env
 ```
 
-MySQL과 Redis를 실행합니다.
+인프라 health 대기와 foreground 애플리케이션 실행을 한 번에 시작합니다.
 
 ```bash
-docker compose up -d
-docker compose ps
+./scripts/run-local.sh
 ```
 
-로컬 MySQL과 다른 Docker MySQL이 기본 포트 `3306` 또는 인접 포트를 사용 중일
-수 있으므로 Docker MySQL은 충돌을 피하기 위해 호스트 포트 `3308`로 실행합니다.
-컨테이너 내부 포트는 `3306`입니다.
+이 스크립트는 Java 17·Docker를 확인하고 MySQL·Redis가 healthy가 될 때까지 기다린 뒤
+local profile을 foreground로 실행합니다. `Ctrl-C`는 이 애플리케이션만 종료하며 인프라는
+`docker compose down`으로 별도 종료합니다. MySQL 호스트 기본 포트는 충돌을 피한
+`3308`이고 컨테이너 내부는 `3306`입니다.
 
-두 서비스가 `healthy` 상태가 된 뒤 애플리케이션을 실행합니다.
+직접 실행하려면 같은 환경에서 다음 순서를 사용합니다.
 
 ```bash
-./gradlew bootRun
+docker compose up -d --wait --wait-timeout 90
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 ```
 
 현재 개발 단계는 Flyway 마이그레이션으로 스키마를 생성하고
 `spring.jpa.hibernate.ddl-auto=validate`로 엔티티와 DB 계약을 검증합니다.
 
-한글 데이터가 `??`로 깨져 저장되는 경우 기존 MySQL 볼륨이 utf8mb4 설정 전에
-생성되었을 수 있습니다. 로컬 개발 데이터 삭제가 가능하다면 DB 볼륨을 초기화한
-뒤 다시 실행합니다.
+기동 후 health를 확인합니다.
 
 ```bash
-docker compose down -v
-docker compose up -d
+curl -i http://localhost:8080/actuator/health/readiness
 ```
 
 애플리케이션은 기본적으로 `http://localhost:8080`에서 실행됩니다.
 경제용어 API 기본 경로는 `/api/v1/terms`입니다.
+
+기존 개발 volume을 건드리지 않는 전체 클린 재현은 별도 Compose project·포트와 임시
+저장소 복사본에서 실행합니다. Java 17이 현재 셸에 선택되어 있어야 합니다.
+
+```bash
+./scripts/verify-clean-environment.sh
+```
+
+스크립트는 빈 MySQL의 Flyway 적용, 실제 애플리케이션 readiness, Fake Provider 기반 핵심
+HTTP smoke, 재기동 시 migration 비중복과 cleanup을 검증합니다. 운영 서버나 공유 개발
+DB에는 `smoke-test.sh`를 실행하지 마십시오. 상세 절차와 설정 책임은
+`docs/14-local-and-operational-runbook.md`에 있습니다.
 
 ### API 예제
 
@@ -505,12 +517,6 @@ Validation 실패:
 }
 ```
 
-한 번에 인프라와 애플리케이션을 실행하려면 다음 스크립트를 사용할 수 있습니다.
-
-```bash
-./scripts/run-local.sh
-```
-
 ## 검증
 
 ```bash
@@ -541,11 +547,14 @@ git diff --check
 실패한 test·JaCoCo·Checkstyle report는 CI 실행별 artifact로 7일 보관합니다. Trigger,
 보안, concurrency와 실패 분석 절차는 `docs/13-continuous-integration.md`에 있습니다.
 
-로컬 데이터베이스와 Redis 볼륨을 초기화하려면 다음 명령을 실행합니다.
+로컬 데이터베이스와 Redis volume 초기화는 해당 Compose project의 모든 개발 데이터를
+삭제합니다. project 이름을 확인하고 명시적으로 허용해야만 실행됩니다.
 
 ```bash
-./scripts/reset-db.sh
+ALLOW_DATA_RESET=true COMPOSE_PROJECT_NAME=econ-pulse ./scripts/reset-db.sh
 ```
+
+일반 점검이나 클린 환경 검증에는 이 명령을 사용하지 않습니다.
 
 ## 로컬 Seed 데이터
 

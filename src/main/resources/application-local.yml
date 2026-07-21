@@ -4,7 +4,7 @@ econpulse:
       type: fake
   internal:
     news-sync:
-      enabled: ${ECONPULSE_INTERNAL_NEWS_SYNC_ENABLED:true}
+      enabled: ${ECONPULSE_INTERNAL_NEWS_SYNC_ENABLED:false}
     mapping-rebuild:
       enabled: ${ECONPULSE_INTERNAL_MAPPING_REBUILD_ENABLED:false}
     term-news-mapping:

@@ -71,6 +71,14 @@ quality step `continue-on-error`; do not replace Testcontainers with Actions ser
 Workflows must not contain real Secrets or request write permissions. Confirm official releases before
 changing Action major versions, and diagnose CI failures instead of repeatedly rerunning unchanged code.
 
+Clean-environment verification must use a disposable Compose project, distinct host ports, and a
+temporary repository copy. Never run `docker compose down -v` against an existing development project
+as part of verification. Smoke tests write fixture data, so run them only with explicit opt-in against
+the disposable local environment; they must use the Fake Provider and never call an actual external
+provider. Shell scripts may terminate only processes whose PID they started, must not print environment
+variables or Secrets, and must keep macOS/Linux compatibility. Verify every documented command before
+publishing it. After shell changes run `bash -n scripts/*.sh` and the standard `./scripts/check.sh`.
+
 ## Commits and Pull Requests
 
 Use concise Conventional Commit subjects, for example `docs: define term-news mapping rules` or `feat: add popular term ranking`. Pull requests must state the phase, summarize contract changes, list verification commands, link issues, and include example requests or screenshots when behavior is user-visible.
